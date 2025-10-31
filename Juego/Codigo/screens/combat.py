@@ -3,45 +3,74 @@ import Const as c
 
 class CombatSystem:
     def __init__(self):
-        self.state = "menu"  # menu / ataque / defensa
+        # Estados: "menu" / "ataque" / "defensa"
+        self.state = "menu"
         self.font = pygame.font.Font(None, 36)
         self.selected = 0  # 0 = Atacar, 1 = Objetos
+
+        # control temporal para "defensa"
         self.timer = 0
+        self.DEFENSA_DUR = int(10 * 60)  # 3s a 60 FPS (ajustá a gusto)
+
+        # edge detection para teclas
+        self._x_prev = False
+        self._left_prev = False
+        self._right_prev = False
+
+        # SFX ataque (opcional)
+        try:
+            self.attack_sound = pygame.mixer.Sound("Juego/assets/Soundtrack/attack.wav")
+            self.attack_sound.set_volume(0.5)
+        except:
+            self.attack_sound = None
+            print("⚠️ No se pudo cargar el sonido de ataque.")
+
+    def _pressed_once(self, now, prev_attr):
+        prev = getattr(self, prev_attr)
+        setattr(self, prev_attr, now)
+        return now and not prev
 
     def update(self, player, enemy):
         keys = pygame.key.get_pressed()
 
-        # --- MENÚ PRINCIPAL ---
+        left_once  = self._pressed_once(keys[pygame.K_LEFT],  "_left_prev")
+        right_once = self._pressed_once(keys[pygame.K_RIGHT], "_right_prev")
+        x_once     = self._pressed_once(keys[pygame.K_x],     "_x_prev")
+
+        # --- MENÚ ---
         if self.state == "menu":
-            if keys[pygame.K_LEFT]:
+            if left_once:
                 self.selected = 0
-            if keys[pygame.K_RIGHT]:
+            if right_once:
                 self.selected = 1
-            if keys[pygame.K_x]:  # 👈 usar X en lugar de Enter
-                if self.selected == 0:
+
+            if x_once:
+                if self.selected == 0:       # ATACAR
                     self.state = "ataque"
-                else:
-                    player.hp = min(player.hp + 5, 20)
+                else:                         # OBJETOS
+                    player.hp = min(player.hp + 15, 20)
                     self.state = "defensa"
                     self.timer = 0
 
-        # --- FASE DE ATAQUE (a definir) ---
+        # --- ATAQUE (placeholder sin minijuego) ---
         elif self.state == "ataque":
-            # por ahora no hay minijuego, solo daño fijo
-            enemy.hp -= 10
-            print(f"⚔️ Ataque! HP enemigo: {enemy.hp}")
+            if self.attack_sound:
+                self.attack_sound.play()
+            if enemy:  # por si acaso
+                enemy.hp -= 10
+            # Pasamos a DEFENSA (esquivar balas del boss) self.DEFENSA_DUR
             self.state = "defensa"
             self.timer = 0
 
-        # --- FASE DE DEFENSA (tu bossfight actual) ---
+        # --- DEFENSA (tu bossfight actual) ---
         elif self.state == "defensa":
             self.timer += 1
-            # después de 5 segundos, volver al menú
-            if self.timer > 5 * c.FPS:
+            # cuando termina la “oleada”, volvemos al menú
+            if self.timer >= self.DEFENSA_DUR:
                 self.state = "menu"
 
     def draw(self, screen):
-        # --- MENÚ ABAJO ---
+        # Menú abajo (sin player)
         if self.state == "menu":
             opciones = ["ATACAR", "OBJETOS"]
             for i, texto in enumerate(opciones):
@@ -53,3 +82,6 @@ class CombatSystem:
         elif self.state == "ataque":
             msg = self.font.render("¡ATACASTE!", True, c.ROJO)
             screen.blit(msg, (c.ANCHO // 2 - 80, c.ALTO - 100))
+
+        # En "defensa" no dibujamos UI extra (se ve la batalla)  defensa
+

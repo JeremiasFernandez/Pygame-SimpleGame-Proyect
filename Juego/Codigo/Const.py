@@ -12,6 +12,7 @@ BLANCO = (255, 255, 255)
 ROJO = (255, 0, 0)
 AZUL = (0, 150, 255)
 GRIS = (60, 60, 60)
+AMARILLO = (255, 255, 0)
 
 # Área de combate (importante para player.py)
 BOX_X = 200
