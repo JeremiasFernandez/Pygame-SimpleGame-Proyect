@@ -1,29 +1,68 @@
 import pygame
 import Const as c
+import os
+
+class AttackEffect(pygame.sprite.Sprite):
+    def __init__(self, enemy_rect):
+        super().__init__()
+        self.frames = []
+        slash_path = os.path.join("Juego", "assets", "Sprites", "slash.gif")
+        self.load_frames(slash_path)
+        self.current_frame = 0
+        self.image = self.frames[self.current_frame]
+        self.rect = self.image.get_rect(center=enemy_rect.center)
+        self.timer = 0
+        self.frame_duration = 6
+        self.finished = False
+
+    def load_frames(self, path):
+        gif = pygame.image.load(path).convert_alpha()
+        width = gif.get_width() // 6
+        height = gif.get_height()
+        for i in range(6):
+            frame = gif.subsurface((i * width, 0, width, height))
+            self.frames.append(pygame.transform.scale(frame, (200, 200)))
+
+    def update(self):
+        self.timer += 1
+        if self.timer >= self.frame_duration:
+            self.timer = 0
+            self.current_frame += 1
+            if self.current_frame >= len(self.frames):
+                self.finished = True
+            else:
+                self.image = self.frames[self.current_frame]
+
 
 class CombatSystem:
     def __init__(self):
-        # Estados: "menu" / "ataque" / "defensa"
         self.state = "menu"
         self.font = pygame.font.Font(None, 36)
-        self.selected = 0  # 0 = Atacar, 1 = Objetos
-
-        # control temporal para "defensa"
+        self.selected = 0
         self.timer = 0
-        self.DEFENSA_DUR = int(10 * 60)  # 3s a 60 FPS (ajustá a gusto)
+        self.DEFENSA_DUR = int(10 * 60)
 
-        # edge detection para teclas
         self._x_prev = False
         self._left_prev = False
         self._right_prev = False
 
-        # SFX ataque (opcional)
         try:
-            self.attack_sound = pygame.mixer.Sound("Juego/assets/Soundtrack/attack.wav")
+            self.attack_sound = pygame.mixer.Sound(os.path.join("Juego", "assets", "Sounds", "Attack.wav"))
             self.attack_sound.set_volume(0.5)
-        except:
+        except Exception as e:
             self.attack_sound = None
-            print("⚠️ No se pudo cargar el sonido de ataque.")
+            print(f"❌ No se pudo cargar Attack.wav: {e}")
+
+        try:
+            self.heal_sound = pygame.mixer.Sound(os.path.join("Juego", "assets", "Sounds", "healup.mp3"))
+            self.heal_sound.set_volume(0.2)
+        except Exception as e:
+            self.heal_sound = None
+            print(f"❌ No se pudo cargar healup.mp3: {e}")
+
+        self.attack_effect = None
+        self.enemy_shake_timer = 0
+        self.enemy_base_pos = None
 
     def _pressed_once(self, now, prev_attr):
         prev = getattr(self, prev_attr)
@@ -33,11 +72,10 @@ class CombatSystem:
     def update(self, player, enemy):
         keys = pygame.key.get_pressed()
 
-        left_once  = self._pressed_once(keys[pygame.K_LEFT],  "_left_prev")
+        left_once = self._pressed_once(keys[pygame.K_LEFT], "_left_prev")
         right_once = self._pressed_once(keys[pygame.K_RIGHT], "_right_prev")
-        x_once     = self._pressed_once(keys[pygame.K_x],     "_x_prev")
+        x_once = self._pressed_once(keys[pygame.K_x], "_x_prev")
 
-        # --- MENÚ ---
         if self.state == "menu":
             if left_once:
                 self.selected = 0
@@ -45,32 +83,57 @@ class CombatSystem:
                 self.selected = 1
 
             if x_once:
-                if self.selected == 0:       # ATACAR
+                if self.selected == 0:
+                    if self.attack_sound:
+                        print("▶️ Reproduciendo Attack.wav")
+                        self.attack_sound.play()
+                    if enemy:
+                        self.attack_effect = AttackEffect(enemy.rect)
+                        self.enemy_shake_timer = 10
+                        self.enemy_base_pos = enemy.rect.topleft
+                        # Use enemy.hit so phase transitions and side-effects run
+                        try:
+                            enemy.hit()
+                        except Exception:
+                            # Fallback to direct HP decrement if method missing
+                            enemy.hp -= 10
                     self.state = "ataque"
-                else:                         # OBJETOS
+                else:
                     player.hp = min(player.hp + 15, 20)
+                    if self.heal_sound:
+                        print("▶️ Reproduciendo healup.mp3")
+                        self.heal_sound.play()
+                    else:
+                        print("❌ No se pudo reproducir healup.mp3")
                     self.state = "defensa"
                     self.timer = 0
 
-        # --- ATAQUE (placeholder sin minijuego) ---
         elif self.state == "ataque":
-            if self.attack_sound:
-                self.attack_sound.play()
-            if enemy:  # por si acaso
-                enemy.hp -= 10
-            # Pasamos a DEFENSA (esquivar balas del boss) self.DEFENSA_DUR
-            self.state = "defensa"
-            self.timer = 0
+            if hasattr(enemy, 'silencio_activo') and enemy.silencio_activo:
+                return
+            if self.attack_effect:
+                self.attack_effect.update()
+                if self.attack_effect.finished:
+                    self.attack_effect = None
+                    self.state = "defensa"
+                    self.timer = 0
+            else:
+                self.state = "defensa"
+                self.timer = 0
 
-        # --- DEFENSA (tu bossfight actual) ---
         elif self.state == "defensa":
             self.timer += 1
-            # cuando termina la “oleada”, volvemos al menú
             if self.timer >= self.DEFENSA_DUR:
                 self.state = "menu"
 
-    def draw(self, screen):
-        # Menú abajo (sin player)
+        if self.enemy_shake_timer > 0 and enemy:
+            offset = (-2, 2)[self.enemy_shake_timer % 2]
+            enemy.rect.topleft = (self.enemy_base_pos[0] + offset, self.enemy_base_pos[1])
+            self.enemy_shake_timer -= 1
+            if self.enemy_shake_timer == 0:
+                enemy.rect.topleft = self.enemy_base_pos
+
+    def draw(self, screen, enemy=None):
         if self.state == "menu":
             opciones = ["ATACAR", "OBJETOS"]
             for i, texto in enumerate(opciones):
@@ -80,8 +143,10 @@ class CombatSystem:
                 screen.blit(render, rect)
 
         elif self.state == "ataque":
+            if enemy and hasattr(enemy, 'silencio_activo') and enemy.silencio_activo:
+                return
             msg = self.font.render("¡ATACASTE!", True, c.ROJO)
             screen.blit(msg, (c.ANCHO // 2 - 80, c.ALTO - 100))
 
-        # En "defensa" no dibujamos UI extra (se ve la batalla)  defensa
-
+        if self.attack_effect:
+            screen.blit(self.attack_effect.image, self.attack_effect.rect)

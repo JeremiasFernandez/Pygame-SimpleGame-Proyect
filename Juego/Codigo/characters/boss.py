@@ -1,28 +1,45 @@
+import os, sys
 import pygame, random, math
-import Const as c
-from characters.bullet import Bullet
 
+# Allow running this file directly by fixing sys.path so 'Const' resolves
+_this_file = os.path.abspath(__file__)
+_codigo_dir = os.path.dirname(os.path.dirname(_this_file))  # .../Codigo
+if _codigo_dir not in sys.path:
+    sys.path.insert(0, _codigo_dir)
+
+import Const as c
+from characters.bullet import Bullet, AttackManager
+
+# If this file is executed directly, inform how to run the game properly
+if __name__ == "__main__":
+    print("Este archivo define la clase Boss. Para jugar, ejecuta Juego/Codigo/main.py")
+    print("Ejemplo (PowerShell): cd Juego/Codigo; python .\\main.py")
+    # Initialize pygame just to show version msg (already prints in some envs)
+    try:
+        import pygame
+        pygame.init()
+    except Exception:
+        pass
 class Boss(pygame.sprite.Sprite):
     def __init__(self, bullets_group, all_sprites):
         super().__init__()
+        # Inicialización de grupos
         self.bullets_group = bullets_group
         self.all_sprites = all_sprites
+        self.attack_manager = AttackManager(self, bullets_group, all_sprites)
+        print("🎯 Boss creado con grupos:", len(bullets_group), "balas,", len(all_sprites), "sprites")
 
-        # ---------------- Core ----------------
         self.timer = 0
         self.attack_timer = 0
-        self.attack_duration = 420          # ~7s a 60 FPS
+        self.attack_duration = 420
         self.hp = 200
         self.phase = 1
-        self.difficulty = 1.0               # escala velocidades/ritmos
-        self.current_attack = "tutorial"    # siempre arranca suave
-        self.music_playing = False          # control interno del boss (fase 2)
+        self.difficulty = 1.0
+        self.current_attack = "tutorial"
+        self.music_playing = False
         self._phase2_entered = False
-        self.phase2_music_started = False  # 👈 evita errores antes de la Fase 2
+        self.phase2_music_started = False
 
-
-        # ---------------- Sprites ----------------
-        # Fase 1 (virus)
         try:
             img1 = pygame.image.load("Juego/assets/sprites/Boss_Virus_1.png").convert_alpha()
         except:
@@ -30,331 +47,275 @@ class Boss(pygame.sprite.Sprite):
         self.image = pygame.transform.scale(img1, (200, 200))
         self.rect = self.image.get_rect(center=(c.ANCHO // 2, 140))
 
-        # Fase 2 (troyano)
         try:
             img2 = pygame.image.load("Juego/assets/sprites/Boss_Virus_2.png").convert_alpha()
-            self._phase2_img = pygame.transform.scale(img2, (200, 200))
+            self._phase2_img = pygame.transform.scale(img2, (300, 300))
         except:
             self._phase2_img = None
 
-        # ---------------- Diálogo ----------------
         self.dialogo = None
         self.dialogo_timer = 0
+        self.silencio_activo = False  # ✅ ESTA LÍNEA AGREGA EL CONTROL DE SILENCIO
+        self._fase3_silence_duration = 4500  # milliseconds: ~4.5s silence before phase 3 activation
+        self.puede_ser_atacado = True
         self.font = pygame.font.Font(None, 28)
 
-        # ---------------- Rotación de ataques ----------------
-        self.phase1_attacks = ["tutorial", "rain", "diagonal", "lateral1", "lateral2"]
-        self.phase2_attacks = ["burst1", "burst2", "burst3", "spiral",
-                               "diagonal", "rain", "lateral1", "lateral2",
-                               "spears", "spearstorm"]
-        self.special_attacks = ["burst1", "burst2", "burst3", "spiral", "spears"]
-        self.special_chance = 0.25
+        # Ataques por fase
+        self.phase1_attacks = ["attack_tutorial", "attack_rain", "attack_diagonal", "attack_lateral1", "attack_lateral2", "attack_burst1", "attack_burst3"]
+        self.phase2_attacks = ["attack_spears", "attack_spearstorm"]  # Phase 2 only uses spear attacks
+        self.phase3_attacks = ["attack_spears", "attack_spearstorm"]  # Ataques más intensos
 
-        # ---------------- Fondo Fase 2 ----------------
-        self.phase2_red_base = (54, 0, 0)   # #360000 muy oscuro
-        self.particles = []                 # (x,y,dx,dy,size,life,color)
+        # Variables de animación y efectos visuales
+        self.phase2_red_base = (54, 0, 0)
+        self.flash_alpha = 0  # Para el efecto de destello blanco
+        self.bg_color = (0, 0, 0)  # Color de fondo dinámico
+        self.movement_timer = 0  # Para movimiento lateral
+        self.movement_direction = 1  # 1 derecha, -1 izquierda
+        self.original_x = self.rect.centerx  # Posición original para movimiento
+        self.phase3_colors = [(255,128,0), (255,0,0), (255,255,0)]  # Colores estilo Asgore
+        self.particles = []
+        self.move_amplitude = 100  # Qué tanto se mueve a los lados
 
-    # =========================================================
-    #                        LOOP
-    # =========================================================
     def update(self):
+        """Actualiza el estado del jefe."""
         self.timer += 1
-        self.attack_timer += 1
-
-        # --- Cambio automático de ataque ---
-        if self.attack_timer >= self.attack_duration:
-            self.cambiar_ataque()
-            self.attack_timer = 0
-
-        # --- FASE 1 ---
-        if self.phase == 1:
-            # ya no maneja música acá, solo ataques
-            self.phase_one_behavior()
-
-            if self.timer == 60:
-                self.decir("JAJA, ¿crees que podés eliminarme?")
-            if self.hp < 150 and not hasattr(self, "fase1_dialogo1"):
-                self.decir("¡Ni siquiera estás en mi segunda fase!")
-                self.fase1_dialogo1 = True
-
-            if self.hp <= 100:
-                self._enter_phase2()
-
-        # --- FASE 2 ---
-        elif self.phase == 2:
-            self.phase_two_behavior()
-
-            if not self.phase2_music_started:
-                try:
-                    pygame.mixer.music.stop()
-                    pygame.mixer.music.load("Juego/assets/Soundtrack/phase2.mp3")
-                    pygame.mixer.music.set_volume(0.5)
-                    pygame.mixer.music.play(-1)
-                    print("🎵 Música: Phase 2 activada")
-                    self.phase2_music_started = True
-                except Exception as e:
-                    print("⚠️ No se pudo reproducir música de fase 2:", e)
-
-            if self.timer % 600 == 0:
-                self.decir("¡NO PODÉS DERROTARME!")
-
-        # --- Diálogo ---
+        
+        # Control de diálogo
         if self.dialogo_timer > 0:
             self.dialogo_timer -= 1
-            if self.dialogo_timer <= 0:
-                self.dialogo = None
+            if self.dialogo_timer == 0:
+                self.dialogo = ""
 
+        # --- PHASE 1 & 2: select and execute attacks normally (unless silence active)
+        if self.phase in (1, 2) and not self.silencio_activo:
+            # decrement attack timer if running
+            if self.attack_timer > 0:
+                self.attack_timer -= 1
 
-    def _enter_phase2(self):
-        """Transición limpia a la Fase 2."""
-        if getattr(self, "_phase2_entered", False):
+            # choose a new attack if none or timer expired
+            if not self.current_attack or self.attack_timer <= 0:
+                self.cambiar_ataque()
+
+            # execute current attack (attacks are usually time/mod based inside)
+            if self.current_attack:
+                try:
+                    attack_method = getattr(self.attack_manager, self.current_attack)
+                    attack_method(self.timer, self.difficulty)
+                except AttributeError:
+                    print(f"⚠️ Ataque no implementado: {self.current_attack}")
+                    self.current_attack = None
+                    self.attack_timer = 60
+                except Exception as e:
+                    print(f"❌ Error ejecutando ataque: {e}")
+                    self.cambiar_ataque()
+
+            # after handling phase1/2 attacks, return to avoid phase3 handling below
             return
-        self._phase2_entered = True
 
-        self.phase = 2
-        self.image = pygame.image.load("Juego/assets/sprites/Boss_Virus_2.png").convert_alpha()
-        self.image = pygame.transform.scale(self.image, (200, 200))
-        self.rect = self.image.get_rect(center=self.rect.center)
+        # Actualizar efectos visuales de fase 3
+        if self.phase == 3:
+            # Efecto de destello blanco con fadeout
+            if hasattr(self, '_flash_fadeout') and self._flash_fadeout and self.flash_alpha > 0:
+                self.flash_alpha = max(0, self.flash_alpha - 8)  # Velocidad del fadeout
+                if self.flash_alpha == 0:
+                    self._flash_fadeout = False
 
-        self.difficulty = 1.4
-        self.phase2_music_started = False  # 👈 se habilita para que update() la reproduzca
-        self.decir("¡TE MOSTRARÉ MI VERDADERA FORMA!")
+            # Si no hay ataque actual o el timer llegó a 0, elegir nuevo ataque
+            if not self.current_attack or self.attack_timer <= 0:
+                self.cambiar_ataque()
+                self.attack_timer = 120
+            
+            # Ejecutar el ataque actual
+            if self.current_attack:
+                try:
+                    attack_method = getattr(self.attack_manager, self.current_attack)
+                    attack_method(self.timer, self.difficulty)
+                    self.attack_timer = max(0, self.attack_timer - 1)  # Decrementar el timer
+                except Exception as e:
+                    print(f"❌ Error ejecutando ataque: {e}")
+                    self.cambiar_ataque()  # Intentar otro ataque si falla
+            # Actualizar timer
+            if self.attack_timer > 0:
+                self.attack_timer -= 1
+                return  # No hacer nada más si el timer está activo
+            
+            # Si no hay ataque actual o el timer llegó a 0, elegir nuevo ataque
+            if not self.current_attack or self.attack_timer <= 0:
+                self.cambiar_ataque()  # Esto seleccionará un nuevo ataque y reiniciará el timer
+                if self.current_attack:
+                    print(f"🎯 Nuevo ataque iniciado: {self.current_attack}")
+                    # Ejecutar el ataque actual una sola vez
+                    try:
+                        attack_method = getattr(self.attack_manager, self.current_attack)
+                        attack_method(self.timer, self.difficulty)
+                        self.attack_timer = 120  # Reiniciar el timer después del ataque
+                    except AttributeError:
+                        print(f"⚠️ Ataque no implementado: {self.current_attack}")
+                        self.current_attack = None
+                    except Exception as e:
+                        print(f"❌ Error ejecutando ataque: {e}")
+        elif self.silencio_activo:
+            print("🔇 Silencio activo - sin ataques")
 
+    def _select_and_execute_attack(self):
+        """Selecciona y ejecuta un ataque basado en la fase actual."""
+        try:
+            # Verificar si es tiempo de cambiar de ataque
+            if not self.current_attack or self.attack_timer <= 0:
+                self.cambiar_ataque()
+            
+            # Ejecutar el ataque actual
+            if self.attack_manager and self.current_attack:
+                try:
+                    # Intentar ejecutar el ataque directamente
+                    attack_method = getattr(self.attack_manager, self.current_attack)
+                    attack_method(self.timer, self.difficulty)
+                except AttributeError as e:
+                    print(f"⚠️ Ataque no implementado: {self.current_attack}")
+                    self.current_attack = None
+                    self.attack_timer = 60
+                except Exception as e:
+                    print(f"❌ Error ejecutando ataque {self.current_attack}:", e)
+        except Exception as e:
+            print("❌ Error general en _select_and_execute_attack:", e)
+            print(f"⚠️ Ataque no implementado: {self.current_attack}")
+            self.current_attack = None
+            self.attack_timer = 60
 
-    # =========================================================
-    #                   TRANSICIÓN FASE 2
-    # =========================================================
+    def check_phase3_transition(self):
+        """Maneja la transición a fase 3 cuando el jefe es derrotado en fase 2."""
+        # Fase 3: transición cuando hp llega a 0 en fase 2
+        if self.phase == 2 and self.hp <= 0 and not hasattr(self, "_fase3_iniciada"):
+            print("⚡ Iniciando transición a fase 3...")
+            self._fase3_iniciada = True
+            self._fase3_tiempo_muerte = pygame.time.get_ticks()
+            try:
+                # Cambiar sprite y detener música
+                self.image = pygame.image.load("Juego/assets/Sprites/boss_derrotado.png").convert_alpha()
+                self.image = pygame.transform.scale(self.image, (300, 300))
+                self.rect = self.image.get_rect(center=(c.ANCHO // 2, 140))
+                
+                # Detener música actual y reproducir silencio
+                pygame.mixer.music.stop()
+                try:
+                    self.silence_sound = pygame.mixer.Sound("Juego/assets/Sounds/silence.wav")
+                    self.silence_sound.set_volume(0.4)
+                    self.silence_sound.play()
+                except Exception as e:
+                    print(f"❌ Error cargando silence.wav: {e}")
+                
+                # Activar silencio y limpiar efectos
+                self.silencio_activo = True
+                self.current_attack = None
+                self.phase2_music_started = False
+                
+                # Limpiar partículas y balas
+                self.attack_manager.clear_attacks()
+                if hasattr(self, 'particles'):
+                    self.particles.clear()
+                
+                # Configurar estado
+                self.puede_ser_atacado = False
+                self.dialogo = "..."
+                self.dialogo_timer = 300
+                
+                print(f"🔇 Fase 3: Silencio iniciado (esperando {self._fase3_silence_duration/1000} segundos)")
+            except Exception as e:
+                print("❌ Error iniciando transición fase 3:", e)
+
+        # Verificar si debemos activar fase 3
+        if hasattr(self, "_fase3_tiempo_muerte") and not hasattr(self, "_fase3_activada"):
+            tiempo_actual = pygame.time.get_ticks()
+            tiempo_espera = tiempo_actual - self._fase3_tiempo_muerte
+            
+            if tiempo_espera >= self._fase3_silence_duration:
+                print(f"⏰ Tiempo de espera completado ({tiempo_espera/1000} segundos)")
+                try:
+                    self._activar_fase3()
+                except Exception as e:
+                    print("❌ Error activando fase 3:", e)
+
     def _enter_phase2(self):
         if self._phase2_entered:
             return
+            
+        # Limpiar ataques actuales
+        self.attack_manager.clear_attacks()
+        self.current_attack = None
+        
+        # Cambiar estado de fase
         self._phase2_entered = True
         self.phase = 2
-        self.music_playing = False  # permitimos que suene la de fase 2
-
+        
+        # Cambiar sprite
         center = self.rect.center
         if self._phase2_img:
             self.image = self._phase2_img
         else:
-            # fallback si no hay imagen
             surf = pygame.Surface((200,200), pygame.SRCALPHA)
             surf.fill((180, 60, 60, 255))
             self.image = surf
         self.rect = self.image.get_rect(center=center)
-
-        # subir dificultad global (sin romper spearstorm lento)
+        
+        # Ajustar dificultad y estado
         self.difficulty = 1.3
+        self.attack_timer = 0
+        self.phase2_music_started = False
+        
+        # Mensaje
         self.decir("¡TE MOSTRARÉ MI VERDADERA FORMA!")
+        print("🎯 Fase 2 iniciada con dificultad:", self.difficulty)
 
-    # =========================================================
-    #                    MÚSICA (segura)
-    # =========================================================
-    def play_music(self, filepath):
+    def cambiar_ataque(self):
+        """Cambia el ataque actual basado en la fase."""
         try:
-            pygame.mixer.music.load(filepath)
-            pygame.mixer.music.set_volume(0.5)
-            pygame.mixer.music.play(-1)
-        except Exception as e:
-            print("⚠️ Error al reproducir música:", e)
+            # Determinar pool de ataques basado en la fase
+            if self.phase == 1:
+                ataques = self.phase1_attacks
+            elif self.phase == 2:
+                ataques = self.phase2_attacks
+            else:  # fase 3
+                ataques = self.phase3_attacks
 
-    # =========================================================
-    #                    ATAQUE ACTUAL
-    # =========================================================
+            # Evitar repetir el mismo ataque
+            posibles = [a for a in ataques if a != self.current_attack]
+            if not posibles:  # si no hay otros ataques, usar todos
+                posibles = ataques
+            self.current_attack = random.choice(posibles)
+            
+            if self.phase == 3:
+                self.decir("¡SIENTE MI PODER FINAL!")
+            else:
+                self.decir(f"¡MI ATAQUE {self.current_attack.upper()} TE ANIQUILARÁ!")
+            
+            # Reiniciar timer
+            self.attack_timer = 120
+            
+            print(f"🎯 Nuevo ataque seleccionado: {self.current_attack}")
+        except Exception as e:
+            print(f"❌ Error cambiando ataque: {e}")
+            self.current_attack = self.phase1_attacks[0]  # Fallback a ataque básico
+
     def phase_one_behavior(self):
-        getattr(self, f"attack_{self.current_attack}")()
+        """Comportamiento específico de fase 1"""
+        if self.current_attack:
+            try:
+                attack_method = getattr(self.attack_manager, self.current_attack)
+                attack_method(self.timer, self.difficulty)
+            except Exception as e:
+                print(f"❌ Error en fase 1: {e}")
+                self.cambiar_ataque()  # Cambiar a otro ataque si falla
 
     def phase_two_behavior(self):
-        getattr(self, f"attack_{self.current_attack}")()
+        """Comportamiento específico de fase 2 - Más agresivo"""
+        if self.current_attack:
+            try:
+                attack_method = getattr(self.attack_manager, self.current_attack)
+                attack_method(self.timer, self.difficulty)
+            except Exception as e:
+                print(f"❌ Error en fase 2: {e}")
+                self.cambiar_ataque()  # Cambiar a otro ataque si falla
 
-    # =========================================================
-    #                ROTACIÓN DE ATAQUES
-    # =========================================================
-    def cambiar_ataque(self):
-        # chance de especial (en cualquier fase)
-        if random.random() < self.special_chance:
-            self.current_attack = random.choice(self.special_attacks)
-            self.decir("⚠️ ¡SISTEMA DE DEFENSA ACTIVADO!")
-            return
-
-        ataques = self.phase1_attacks if self.phase == 1 else self.phase2_attacks
-        posibles = [a for a in ataques if a != self.current_attack]
-        self.current_attack = random.choice(posibles)
-        self.decir(f"¡MI ATAQUE {self.current_attack.upper()} TE ANIQUILARÁ!")
-
-    # =========================================================
-    #                    ATAQUES
-    # =========================================================
-    def attack_tutorial(self):
-        """Lluvia lenta y suavecita (siempre el primero)."""
-        if self.timer % 13 == 0:
-            x = random.randint(c.BOX_X + 10, c.BOX_X + c.BOX_ANCHO - 10)
-            b = Bullet(x, c.BOX_Y, 4)
-            b.damage = 2
-            self._spawn(b)
-
-    def attack_rain(self):
-        if self.timer % max(1, int(5 / self.difficulty)) == 0:
-            x = random.randint(c.BOX_X + 10, c.BOX_X + c.BOX_ANCHO - 10)
-            b = Bullet(x, c.BOX_Y, int(6 * self.difficulty))
-            self._spawn(b)
-
-    def attack_diagonal(self):
-        if self.timer % max(1, int(4 / self.difficulty)) == 0:
-            direction = random.choice([-1, 1])
-            x = random.randint(c.BOX_X + 10, c.BOX_X + c.BOX_ANCHO - 10)
-            b = Bullet(x, c.BOX_Y, int(5 * self.difficulty))
-            b.speed_x = direction * int(3 * self.difficulty)
-            b.speed_y = int(5 * self.difficulty)
-            b.update = lambda b=b: self._move_diag(b)
-            self._spawn(b)
-
-    def attack_lateral1(self):
-        """Desde la izquierda hacia la derecha."""
-        if self.timer % max(1, int(13 / self.difficulty)) == 0:
-            y = random.randint(c.BOX_Y + 20, c.BOX_Y + c.BOX_ALTO - 50)
-            b = Bullet(c.BOX_X, y, 0)
-            b.speed_x = 6
-            b.speed_y = 0
-            b.damage = 3
-            b.update = lambda b=b: self._move_diag(b)
-            self._spawn(b)
-
-    def attack_lateral2(self):
-        """Desde la derecha hacia la izquierda."""
-        if self.timer % max(1, int(13 / self.difficulty)) == 0:
-            y = random.randint(c.BOX_Y + 20, c.BOX_Y + c.BOX_ALTO - 50)
-            b = Bullet(c.BOX_X + c.BOX_ANCHO, y, 0)
-            b.speed_x = -6
-            b.speed_y = 0
-            b.damage = 3
-            b.update = lambda b=b: self._move_diag(b)
-            self._spawn(b)
-
-    def attack_burst1(self):
-        """Explosión circular (radial)."""
-        if self.timer % 20 == 0:
-            cx = c.ANCHO // 2
-            cy = self.rect.centery + 20
-            for ang in range(0, 360, 30):
-                r = math.radians(ang)
-                dx, dy = math.cos(r) * 4, math.sin(r) * 4
-                b = Bullet(cx, cy, 0)
-                b.damage = 4
-                b.update = lambda b=b, dx=dx, dy=dy: self._move_vec(b, dx, dy)
-                self._spawn(b)
-
-    def attack_burst2(self):
-        """Abanico frontal hacia abajo."""
-        if self.timer % 25 == 0:
-            cx = c.BOX_X + c.BOX_ANCHO // 2
-            start = -60
-            for i in range(5):
-                ang = math.radians(start + i * 30)
-                dx, dy = math.cos(ang) * 5, math.sin(ang) * 5
-                b = Bullet(cx, c.BOX_Y + 40, 0)
-                b.damage = 4
-                b.update = lambda b=b, dx=dx, dy=dy: self._move_vec(b, dx, dy)
-                self._spawn(b)
-
-    def attack_burst3(self):
-        """Tres ráfagas consecutivas al centro."""
-        if self.timer % 90 < 15 and self.timer % 5 == 0:
-            cx = c.BOX_X + c.BOX_ANCHO // 2
-            for dx in [-4, -2, 0, 2, 4]:
-                b = Bullet(cx, c.BOX_Y + 20, 6)
-                b.speed_x = dx
-                b.speed_y = 6
-                b.damage = 5
-                b.update = lambda b=b: self._move_diag(b)
-                self._spawn(b)
-
-    def attack_spiral(self):
-        """Espiral vistosa (daño bajo)."""
-        if self.timer % 15 == 0:
-            cx, cy = c.ANCHO // 2, c.BOX_Y + 50
-            for i in range(0, 360, 45):
-                ang = math.radians(i + self.timer * 5)
-                dx, dy = math.cos(ang) * 4, math.sin(ang) * 4
-                b = Bullet(cx, cy, 0)
-                b.damage = 2
-                b.update = lambda b=b, dx=dx, dy=dy: self._move_vec(b, dx, dy)
-                self._spawn(b)
-
-    def attack_spears(self):
-        """Lanzas (vertical u horizontal) más rápidas en F2."""
-        if self.timer % max(1, int(40 / self.difficulty)) == 0:
-            if random.choice([True, False]):  # vertical
-                x = random.randint(c.BOX_X + 30, c.BOX_X + c.BOX_ANCHO - 30)
-                b = Bullet(x, c.BOX_Y - 100, 0)
-                b.image = pygame.Surface((10, 60), pygame.SRCALPHA); b.image.fill((200,200,255,230))
-                b.rect = b.image.get_rect(center=(x, c.BOX_Y - 30))
-                b.speed_y = int(9 * self.difficulty)
-                b.damage = 5
-                b.update = lambda b=b: self._move_diag(b)
-            else:  # horizontal
-                y = random.randint(c.BOX_Y + 40, c.BOX_Y + c.BOX_ALTO - 40)
-                if random.choice([True, False]):
-                    x, sx = c.BOX_X - 50, int(10 * self.difficulty)
-                else:
-                    x, sx = c.BOX_X + c.BOX_ANCHO + 50, -int(10 * self.difficulty)
-                b = Bullet(x, y, 0)
-                b.image = pygame.Surface((60, 10), pygame.SRCALPHA); b.image.fill((200,200,255,230))
-                b.rect = b.image.get_rect(center=(x, y))
-                b.speed_x = sx
-                b.damage = 5
-                b.update = lambda b=b: self._move_diag(b)
-            self._spawn(b)
-
-    def attack_spearstorm(self):
-        """MUCHAS lanzas MUY LENTAS a la vez (espectáculo)."""
-        if self.timer % 90 == 0:  # “oleadas” periódicas
-            cantidad = random.randint(12, 18)
-            for _ in range(cantidad):
-                if random.choice([True, False]):  # vertical lenta
-                    x = random.randint(c.BOX_X + 30, c.BOX_X + c.BOX_ANCHO - 30)
-                    b = Bullet(x, c.BOX_Y - 100, 0)
-                    b.image = pygame.Surface((10, 70), pygame.SRCALPHA); b.image.fill((170, 200, 255, 230))
-                    b.rect = b.image.get_rect(center=(x, c.BOX_Y - 30))
-                    b.speed_y = 2  # MUY lenta
-                    b.damage = 4
-                    b.update = lambda b=b: self._move_diag(b)
-                else:  # horizontal lenta
-                    y = random.randint(c.BOX_Y + 30, c.BOX_Y + c.BOX_ALTO - 30)
-                    if random.choice([True, False]):
-                        x, sx = c.BOX_X - 60, 2
-                    else:
-                        x, sx = c.BOX_X + c.BOX_ANCHO + 60, -2
-                    b = Bullet(x, y, 0)
-                    b.image = pygame.Surface((70, 10), pygame.SRCALPHA); b.image.fill((170, 200, 255, 230))
-                    b.rect = b.image.get_rect(center=(x, y))
-                    b.speed_x = sx
-                    b.damage = 4
-                    b.update = lambda b=b: self._move_diag(b)
-                self._spawn(b)
-
-    # =========================================================
-    #                   MOVIMIENTOS & SPAWN
-    # =========================================================
-    def _spawn(self, bullet):
-        self.bullets_group.add(bullet)
-        self.all_sprites.add(bullet)
-
-    def _move_diag(self, b):
-        b.rect.y += getattr(b, "speed_y", 0)
-        b.rect.x += getattr(b, "speed_x", 0)
-        if (b.rect.top > c.ALTO or b.rect.bottom < 0 or
-            b.rect.right < 0 or b.rect.left > c.ANCHO):
-            b.kill()
-
-    def _move_vec(self, b, dx, dy):
-        b.rect.x += dx
-        b.rect.y += dy
-        if (b.rect.top > c.ALTO or b.rect.bottom < 0 or
-            b.rect.right < 0 or b.rect.left > c.ANCHO):
-            b.kill()
-
-    # =========================================================
-    #                   UI: BARRA & DIÁLOGO
-    # =========================================================
     def draw_health_bar(self, screen):
         vida_max = 200
         vida_actual = max(0, self.hp)
@@ -363,11 +324,9 @@ class Boss(pygame.sprite.Sprite):
         barra_y = 30
         propor = vida_actual / vida_max
         relleno = int(barra_ancho * propor)
-
         pygame.draw.rect(screen, c.GRIS,  (barra_x, barra_y, barra_ancho, barra_alto))
         pygame.draw.rect(screen, c.ROJO,  (barra_x, barra_y, relleno,     barra_alto))
         pygame.draw.rect(screen, c.BLANCO,(barra_x, barra_y, barra_ancho, barra_alto), 2)
-
         f = pygame.font.Font(None, 28)
         t = f.render(f"{vida_actual}/{vida_max}", True, c.BLANCO)
         screen.blit(t, t.get_rect(center=(c.ANCHO // 2, barra_y + barra_alto // 2)))
@@ -377,27 +336,37 @@ class Boss(pygame.sprite.Sprite):
         self.dialogo_timer = duracion
 
     def draw_dialogue(self, screen):
+        # Dibujar efectos visuales de fase 3
+        if self.phase == 3:
+            # Color de fondo dinámico
+            bg_surface = pygame.Surface((c.ANCHO, c.ALTO))
+            bg_surface.fill(self.bg_color)
+            screen.blit(bg_surface, (0, 0), special_flags=pygame.BLEND_RGB_ADD)
+            
+            # Efecto de destello blanco
+            if self.flash_alpha > 0:
+                flash_surface = pygame.Surface((c.ANCHO, c.ALTO))
+                flash_surface.fill((255, 255, 255))
+                flash_surface.set_alpha(self.flash_alpha)
+                screen.blit(flash_surface, (0, 0))
+
+        # Dibujar el diálogo
         if not self.dialogo: return
         text_surf = self.font.render(self.dialogo, True, c.BLANCO)
         rect = text_surf.get_rect(center=(c.ANCHO // 2, self.rect.bottom + 30))
         screen.blit(text_surf, rect)
 
-    # =========================================================
-    #             FONDO FASE 2 (detrás del borde)
-    # =========================================================
     def draw_phase2_background(self, screen):
-        """Llamar desde main ANTES de dibujar el borde. Solo fase 2."""
+        if self.silencio_activo:
+            screen.fill((0, 0, 0))
+            self.particles = []
+            return
         if self.phase != 2:
             return
-
-        # capa base rojiza MUY oscura
         base = pygame.Surface((c.ANCHO, c.ALTO), pygame.SRCALPHA)
-        base.fill((*self.phase2_red_base, 230))  # casi negro con leve rojo
+        base.fill((*self.phase2_red_base, 230))
         screen.blit(base, (0, 0))
-
-        # partículas (amarillas para que se vean)
         if random.random() < 0.25:
-            # nace fuera del área del cuadro para no “ensuciar” adentro
             while True:
                 x = random.randint(0, c.ANCHO)
                 y = random.randint(0, c.ALTO)
@@ -407,10 +376,8 @@ class Boss(pygame.sprite.Sprite):
             dy = random.uniform(-1.0, -0.3)
             size = random.randint(1, 2)
             life = random.randint(60, 120)
-            color = (255, 230, 120)  # amarillitas
+            color = (255, 230, 120)
             self.particles.append([x, y, dx, dy, size, life, color])
-
-        # actualizar/dibujar
         alive = []
         for (x, y, dx, dy, size, life, color) in self.particles:
             x += dx; y += dy; life -= 1
@@ -423,301 +390,130 @@ class Boss(pygame.sprite.Sprite):
         self.particles = alive
 
 
-    def draw_health_bar(self, screen):
-        vida_max = 200
-        vida_actual = max(0, self.hp)
 
-        barra_ancho = 250
-        barra_alto = 15
-        barra_x = (c.ANCHO // 2) - (barra_ancho // 2)
-        barra_y = 30
+    def _activar_fase3(self):
+        """Activa la fase 3 del jefe después del período de silencio."""
+        print("🎯 Activando fase 3...")
+        try:
+            # 1. Detener silence.wav si está sonando
+            if hasattr(self, 'silence_sound') and self.silence_sound:
+                self.silence_sound.stop()
 
-        proporcion = vida_actual / vida_max
-        ancho_relleno = int(barra_ancho * proporcion)
+            # 2. Efecto de destello blanco + flash sound
+            self.flash_alpha = 255  # Pantalla completamente blanca
+            try:
+                flash_sound = pygame.mixer.Sound("Juego/assets/Sounds/flash.wav")
+                flash_sound.play()
+            except Exception as e:
+                print(f"❌ Error cargando flash.wav: {e}")
 
-        pygame.draw.rect(screen, c.GRIS, (barra_x, barra_y, barra_ancho, barra_alto))
-        pygame.draw.rect(screen, c.ROJO, (barra_x, barra_y, ancho_relleno, barra_alto))
-        pygame.draw.rect(screen, c.BLANCO, (barra_x, barra_y, barra_ancho, barra_alto), 2)
+            # 3. Cargar sprite
+            img = pygame.image.load("Juego/assets/Sprites/Boss_Virus_3.png").convert_alpha()
+            self.image = pygame.transform.scale(img, (233, 350))
+            self.rect = self.image.get_rect(center=(c.ANCHO // 2, 140))
+            self.original_x = self.rect.centerx
+            
+            # 4. Cambiar música
+            pygame.mixer.music.stop()
+            pygame.mixer.music.load("Juego/assets/Soundtrack/phase3.mp3")
+            pygame.mixer.music.set_volume(0.6)
+            pygame.mixer.music.play(-1)
 
-        font = pygame.font.Font(None, 28)
-        texto = font.render(f"{vida_actual}/{vida_max}", True, c.BLANCO)
-        rect = texto.get_rect(center=(c.ANCHO // 2, barra_y + barra_alto // 2))
-        screen.blit(texto, rect)
+            # Iniciar el fadeout del destello
+            self._flash_fadeout = True
+            
+            # 4. Restaurar vida y configurar fase 3
+            self.phase = 3
+            self.hp = 50  # Resucita con +50 HP
+            self.difficulty = 1.6
+            self.attack_timer = 0
+            self.current_attack = random.choice(self.phase3_attacks)
+            
+            # 5. Reactivar comportamiento normal
+            self.puede_ser_atacado = True
+            self.silencio_activo = False
+            
+            # 6. Diálogo y estado
+            self.dialogo = "¡ESTA ES MI FORMA FINAL!"
+            self.dialogo_timer = 300
+            self._fase3_activada = True
+            
+            print(f"🧬 Fase 3 activada exitosamente (HP: {self.hp})")
+        except Exception as e:
+            print("❌ Error activando fase 3:", e)
+            # Intentar recuperarse del error
+            self.phase = 3
+            self.hp = 50
+            self.puede_ser_atacado = True
+            self.silencio_activo = False
+            
+    def hit(self, damage=10):
+        """El jefe recibe daño y maneja las transiciones de fase.
 
-    # --------------------------------------------
-    def cambiar_ataque(self):
-        if random.random() < self.special_chance:
-            self.current_attack = random.choice(self.special_attacks)
-            self.decir("⚠️ ¡SISTEMA DE DEFENSA ACTIVADO!")
+        Accepts an optional damage amount (default 10). This lets callers
+        use enemy.hit(100) for debug or enemy.hit() for standard attacks.
+        """
+        if not self.puede_ser_atacado:
             return
 
-        ataques = self.phase1_attacks if self.phase == 1 else self.phase2_attacks
-        posibles = [atk for atk in ataques if atk != self.current_attack]
-        self.current_attack = random.choice(posibles)
-        self.decir(f"¡MI ATAQUE {self.current_attack.upper()} TE ANIQUILARÁ!")
+        # Reducir HP por la cantidad indicada
+        self.hp -= damage
+        print(f"💥 Boss dañado (HP: {self.hp})")
 
-    # --------------------------------------------
-    def phase_one_behavior(self):
-        getattr(self, f"attack_{self.current_attack}")()
-
-    def phase_two_behavior(self):
-        getattr(self, f"attack_{self.current_attack}")()
-
-    # --------------------------------------------
-    def play_music(self, ruta):
-        """Reproduce música si no está ya sonando esa misma pista."""
+        # Verificar transiciones
+        if self.phase == 1 and self.hp <= 100:
+            print("🔄 Transición a fase 2")
+            self._enter_phase2()
+            # Asegurar HP positivo al entrar a fase 2 (evita estados atascados si cayó a <= 0)
+            if self.hp <= 0:
+                self.hp = 50
+            
+            # Cargar música de fase 2 si aún no está cargada
+            if not self.phase2_music_started:
+                try:
+                    pygame.mixer.music.load("Juego/assets/Soundtrack/phase2.mp3")
+                    pygame.mixer.music.set_volume(0.4)
+                    pygame.mixer.music.play(-1)
+                    self.phase2_music_started = True
+                    print("🎵 Música de fase 2 iniciada")
+                except Exception as e:
+                    print(f"⚠️ Error cargando música fase 2: {e}")
+                    
+        elif self.phase == 2 and self.hp <= 0:
+            print("🔄 Iniciando transición a fase 3")
+            self.check_phase3_transition()
+            # Limpiar ataques y partículas
+            self.attack_manager.clear_attacks()
+            if hasattr(self, 'particles'):
+                self.particles.clear()
+            
+        elif self.phase == 3 and self.hp <= 0:
+            print("💀 Muerte definitiva")
+            self._muerte_definitiva()
+            
+    def _muerte_definitiva(self):
+        """El jefe muere definitivamente al perder toda su vida en fase 3."""
         try:
-            # si no hay música o cambió la pista
-            if not pygame.mixer.music.get_busy() or getattr(self, "current_track", None) != ruta:
-                pygame.mixer.music.stop()
-                pygame.mixer.music.load(ruta)
-                pygame.mixer.music.set_volume(0.55)
-                pygame.mixer.music.play(-1)
-                self.current_track = ruta
-                print(f"🎵 Reproduciendo música de fase 2: {ruta}")
+            # Detener música y ataques
+            pygame.mixer.music.stop()
+            self.attack_manager.clear_attacks()
+            self.current_attack = None
+            self.puede_ser_atacado = False
+            
+            # Cambiar sprite a versión derrotada/muerta
+            try:
+                img = pygame.image.load("Juego/assets/Sprites/boss_derrotado.png").convert_alpha()
+                self.image = pygame.transform.scale(img, (300, 300))
+                self.rect = self.image.get_rect(center=(c.ANCHO // 2, 140))
+            except:
+                # Si no hay sprite de muerte, oscurecer el actual
+                self.image.fill((40, 40, 40, 255), special_flags=pygame.BLEND_RGBA_MULT)
+            
+            # Marcar como definitivamente muerto
+            self._muerte_final = True
+            self.dialogo = "¡NOOOOOO! ¡IMPOSIBLE!"
+            self.dialogo_timer = 300
+            
+            print("💀 ¡Jefe definitivamente derrotado!")
         except Exception as e:
-            print(f"⚠️ Error al reproducir la música de fase 2: {e}")
-
-
-    # --------------------------------------------
-    def draw_title(self, screen):
-        """Título dramático solo en fase 2"""
-        if self.show_title and self.title_timer > 0:
-            self.title_timer -= 1
-            self.title_wave += 0.15
-
-            offset_y = math.sin(self.title_wave) * 3
-            text = self.title_font.render("TROYANO LEGENDARIO", True, (255, 220, 220))
-            alpha = max(0, int(255 * (self.title_timer / 240)))
-            text.set_alpha(alpha)
-
-            rect = text.get_rect(center=(c.ANCHO // 2, self.rect.top - 40 + offset_y))
-            screen.blit(text, rect)
-
-            if self.title_timer <= 0:
-                self.show_title = False
-
-
-    # --------------------------------------------
-    #                ATAQUES
-    # --------------------------------------------
-    def attack_tutorial(self):
-        if self.timer % 13 == 0:
-            x = random.randint(c.BOX_X + 10, c.BOX_X + c.BOX_ANCHO - 10)
-            b = Bullet(x, c.BOX_Y, 4)
-            b.damage = 1
-            self.bullets_group.add(b)
-            self.all_sprites.add(b)
-
-    def attack_rain(self):
-        step = max(1, int(5 / self.difficulty))
-        if self.timer % step == 0:
-            x = random.randint(c.BOX_X + 10, c.BOX_X + c.BOX_ANCHO - 10)
-            b = Bullet(x, c.BOX_Y, max(1, int(6 * self.difficulty)))
-            self.bullets_group.add(b)
-            self.all_sprites.add(b)
-
-    def attack_diagonal(self):
-        step = max(1, int(4 / self.difficulty))
-        if self.timer % step == 0:
-            direction = random.choice([-1, 1])
-            x = random.randint(c.BOX_X + 10, c.BOX_X + c.BOX_ANCHO - 10)
-            b = Bullet(x, c.BOX_Y, max(1, int(5 * self.difficulty)))
-            b.speed_x = direction * max(1, int(3 * self.difficulty))
-            b.speed_y = max(1, int(5 * self.difficulty))
-            b.update = lambda: self.move_diagonal(b)
-            self.bullets_group.add(b)
-            self.all_sprites.add(b)
-
-    def attack_lateral1(self):
-        step = max(1, int(13 / self.difficulty))
-        if self.timer % step == 0:
-            y = random.randint(c.BOX_Y + 20, c.BOX_Y + c.BOX_ALTO - 50)
-            x = c.BOX_X
-            dx = max(1, int(6 * self.difficulty))
-            b = Bullet(x, y, 0)
-            b.speed_x = dx
-            b.speed_y = 0
-            b.damage = 2
-            b.update = lambda: self.move_diagonal(b)
-            self.bullets_group.add(b)
-            self.all_sprites.add(b)
-
-    def attack_lateral2(self):
-        step = max(1, int(13 / self.difficulty))
-        if self.timer % step == 0:
-            y = random.randint(c.BOX_Y + 20, c.BOX_Y + c.BOX_ALTO - 50)
-            x = c.BOX_X + c.BOX_ANCHO
-            dx = -max(1, int(6 * self.difficulty))
-            b = Bullet(x, y, 0)
-            b.speed_x = dx
-            b.speed_y = 0
-            b.damage = 2
-            b.update = lambda: self.move_diagonal(b)
-            self.bullets_group.add(b)
-            self.all_sprites.add(b)
-
-    def attack_burst1(self):
-        if self.timer % 20 == 0:
-            center_x = c.ANCHO // 2
-            center_y = self.rect.centery + 20
-            for angle_deg in range(0, 360, 30):
-                angle = math.radians(angle_deg)
-                dx = math.cos(angle) * max(2, 4 * self.difficulty / 1.8)
-                dy = math.sin(angle) * max(2, 4 * self.difficulty / 1.8)
-                b = Bullet(center_x, center_y, 0)
-                b.damage = 2
-                b.update = lambda b=b, dx=dx, dy=dy: self.move_spiral(b, dx, dy)
-                self.bullets_group.add(b)
-                self.all_sprites.add(b)
-
-    def attack_burst2(self):
-        if self.timer % 25 == 0:
-            center_x = c.BOX_X + c.BOX_ANCHO // 2
-            start_angle = -60
-            for i in range(5):
-                angle = math.radians(start_angle + i * 30)
-                dx = math.cos(angle) * max(2, 5 * self.difficulty / 1.8)
-                dy = math.sin(angle) * max(2, 5 * self.difficulty / 1.8)
-                b = Bullet(center_x, c.BOX_Y + 40, 0)
-                b.damage = 2
-                b.update = lambda b=b, dx=dx, dy=dy: self.move_spiral(b, dx, dy)
-                self.bullets_group.add(b)
-                self.all_sprites.add(b)
-
-    def attack_burst3(self):
-        # tres ráfagas cortas seguidas
-        if self.timer % 90 < 15 and self.timer % 5 == 0:
-            center_x = c.BOX_X + c.BOX_ANCHO // 2
-            for dx in [-4, -2, 0, 2, 4]:
-                b = Bullet(center_x, c.BOX_Y + 20, max(1, int(6 * self.difficulty)))
-                b.speed_x = int(dx * self.difficulty)
-                b.speed_y = max(1, int(6 * self.difficulty))
-                b.damage = 2
-                b.update = lambda b=b: self.move_diagonal(b)
-                self.bullets_group.add(b)
-                self.all_sprites.add(b)
-
-    def attack_spiral(self):
-        if self.timer % 15 == 0:
-            center_x = c.ANCHO // 2
-            center_y = c.BOX_Y + 50
-            for i in range(0, 360, 45):
-                angle = math.radians(i + self.timer * 5)
-                dx = math.cos(angle) * max(2, 4 * self.difficulty / 1.8)
-                dy = math.sin(angle) * max(2, 4 * self.difficulty / 1.8)
-                b = Bullet(center_x, center_y, 0)
-                b.damage = 2
-                b.update = lambda dx=dx, dy=dy, b=b: self.move_spiral(b, dx, dy)
-                self.bullets_group.add(b)
-                self.all_sprites.add(b)
-
-    def attack_spears(self):
-        """Lanzas largas verticales u horizontales (más duras en fase 2)."""
-        step = max(1, int(40 / self.difficulty))
-        if self.timer % step == 0:
-            orientacion = random.choice(["vertical", "horizontal"])
-
-            if orientacion == "vertical":
-                x = random.randint(c.BOX_X + 30, c.BOX_X + c.BOX_ANCHO - 30)
-                b = Bullet(x, c.BOX_Y - 100, 0)
-                # superficie alargada (convert_alpha para blend)
-                b.image = pygame.Surface((10, 80), pygame.SRCALPHA).convert_alpha()
-                b.image.fill((200, 200, 255, 255))
-                b.rect = b.image.get_rect(center=(x, c.BOX_Y - 30))
-                b.speed_y = max(2, int(9 * self.difficulty))
-                b.damage = 3
-                b.update = lambda b=b: self.move_diagonal(b)
-
-            else:
-                y = random.randint(c.BOX_Y + 40, c.BOX_Y + c.BOX_ALTO - 40)
-                lado = random.choice(["izq", "der"])
-                if lado == "izq":
-                    x = c.BOX_X - 60
-                    dx = max(2, int(10 * self.difficulty))
-                else:
-                    x = c.BOX_X + c.BOX_ANCHO + 60
-                    dx = -max(2, int(10 * self.difficulty))
-
-                b = Bullet(x, y, 0)
-                b.image = pygame.Surface((80, 10), pygame.SRCALPHA).convert_alpha()
-                b.image.fill((200, 200, 255, 255))
-                b.rect = b.image.get_rect(center=(x, y))
-                b.speed_x = dx
-                b.damage = 4
-                b.update = lambda b=b: self.move_diagonal(b)
-
-            self.bullets_group.add(b)
-            self.all_sprites.add(b)
-
-    def attack_spearstorm(self):
-        """Tormenta de lanzas lentas: salen muchas constantemente, muy despacio."""
-        # genera muchas lanzas lentamente cada frame
-        if self.timer % 80 == 0:  # 👈 cada pocos frames (ajustable)
-            cantidad = random.randint(3, 6)  # 👈 varias lanzas por tick
-
-            for _ in range(cantidad):
-                orientacion = random.choice(["vertical", "horizontal"])
-
-                if orientacion == "vertical":
-                    # Lanza que cae desde arriba muy despacio
-                    x = random.randint(c.BOX_X + 30, c.BOX_X + c.BOX_ANCHO - 30)
-                    b = Bullet(x, c.BOX_Y - 100, 0)
-                    b.image = pygame.Surface((10, 70), pygame.SRCALPHA).convert_alpha()
-                    b.image.fill((180, 200, 255, 220))  # un poco translúcida
-                    b.rect = b.image.get_rect(center=(x, c.BOX_Y - 30))
-                    b.speed_y = random.uniform(0.5, 1.2)  # 👈 super lenta
-                    b.damage = 4
-                    b.update = lambda b=b: self.move_diagonal(b)
-
-                else:
-                    # Lanza lateral muy lenta
-                    y = random.randint(c.BOX_Y + 30, c.BOX_Y + c.BOX_ALTO - 30)
-                    lado = random.choice(["izq", "der"])
-                    if lado == "izq":
-                        x = c.BOX_X - 60
-                        dx = random.uniform(0.5, 1.2)
-                    else:
-                        x = c.BOX_X + c.BOX_ANCHO + 60
-                        dx = -random.uniform(0.5, 1.2)
-
-                    b = Bullet(x, y, 0)
-                    b.image = pygame.Surface((70, 10), pygame.SRCALPHA).convert_alpha()
-                    b.image.fill((180, 200, 255, 220))
-                    b.rect = b.image.get_rect(center=(x, y))
-                    b.speed_x = dx
-                    b.damage = 4
-                    b.update = lambda b=b: self.move_diagonal(b)
-
-                self.bullets_group.add(b)
-                self.all_sprites.add(b)
-
-
-    # --------------------------------------------
-    def move_diagonal(self, b):
-        b.rect.y += getattr(b, "speed_y", 0)
-        b.rect.x += getattr(b, "speed_x", 0)
-        if (b.rect.top > c.ALTO or b.rect.bottom < 0 or
-            b.rect.right < 0 or b.rect.left > c.ANCHO):
-            b.kill()
-    def move_spiral(self, b, dx, dy):
-        b.rect.x += dx
-        b.rect.y += dy
-        if (b.rect.top > c.ALTO or b.rect.bottom < 0 or
-            b.rect.right < 0 or b.rect.left > c.ANCHO):
-            b.kill()
-    # --------------------------------------------
-    # --------------------------------------------
-    #           DIÁLOGO DEL JEFE
-    # --------------------------------------------
-    def decir(self, texto, duracion=150):
-        """Muestra un diálogo temporal del jefe."""
-        self.dialogo = texto
-        self.dialogo_timer = duracion
-
-    def draw_dialogue(self, screen):
-        """Dibuja el texto de diálogo si está activo."""
-        if hasattr(self, "dialogo") and self.dialogo:
-            text_surf = self.font.render(self.dialogo, True, (255, 255, 255))
-            rect = text_surf.get_rect(center=(self.rect.centerx, self.rect.bottom + 30))
-            screen.blit(text_surf, rect)
+            print("❌ Error en muerte definitiva:", e)

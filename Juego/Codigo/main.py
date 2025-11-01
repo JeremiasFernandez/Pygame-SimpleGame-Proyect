@@ -87,8 +87,19 @@ while running:
         # Botón de debug
         if event.type == pygame.KEYDOWN and event.key == pygame.K_F1:
             if enemy:
-                enemy.hp -= 100
-                print(f"💥 Boss HP reducido a {enemy.hp}")
+                # Apply large debug damage via enemy.hit so transitions run
+                try:
+                    enemy.hit(100)
+                except Exception:
+                    enemy.hp -= 100
+                print(f"💥 Boss HP reducido a {getattr(enemy,'hp',None)}")
+
+        # Forzar ataque de lluvia para pruebas rápidas
+        if event.type == pygame.KEYDOWN and event.key == pygame.K_r:
+            if enemy:
+                enemy.current_attack = "attack_rain"
+                enemy.attack_timer = 120
+                print("⚡ Forzando ataque: attack_rain")
 
         # Iniciar batalla
         if event.type == pygame.KEYDOWN and modo_juego == "intro" and event.key == pygame.K_x:
@@ -99,8 +110,6 @@ while running:
             intentos += 1
             reproducir_musica_aleatoria()
 
-        if player:
-            player.registrar_evento(event)
 
     # -----------------------------------------------------
     # --- DIBUJO Y LÓGICA ---
@@ -108,7 +117,7 @@ while running:
 
     if modo_juego == "batalla":
         if enemy and hasattr(enemy, "fondo_color"):
-            screen.fill(enemy.fondo_color)
+            screen.fill(((0, 0, 0)))
         else:
             screen.fill(c.NEGRO)
 
@@ -147,7 +156,12 @@ while running:
                 screen.blit(enemy.image, enemy.rect)
                 enemy.draw_health_bar(screen)
                 enemy.draw_dialogue(screen)
-            combate.draw(screen)
+                # Asegurar que transiciones críticas (como fase 3) no se pierdan en 'menu'
+                try:
+                    enemy.check_phase3_transition()
+                except Exception:
+                    pass
+            combate.draw(screen, enemy)
 
         elif combate.state == "ataque":
             border.draw(screen)
@@ -155,12 +169,19 @@ while running:
                 screen.blit(enemy.image, enemy.rect)
                 enemy.draw_health_bar(screen)
                 enemy.draw_dialogue(screen)
-            combate.draw(screen)
+                # También verificar transiciones durante 'ataque'
+                try:
+                    enemy.check_phase3_transition()
+                except Exception:
+                    pass
+            combate.draw(screen, enemy)
 
         elif combate.state == "defensa":
-            bullets.update()
+            # Primero actualizamos todo
             if enemy:
                 enemy.update()
+                enemy.check_phase3_transition()
+            bullets.update()
             border.update(player)
 
             # Colisiones
@@ -169,8 +190,13 @@ while running:
                 damage = getattr(hit, "damage", 5)
                 player.take_damage(damage)
 
+            # Dibujado en orden correcto
             border.draw(screen)
-            all_sprites.draw(screen)
+            screen.blit(enemy.image, enemy.rect)  # Primero el jefe
+            bullets.draw(screen)  # Luego las balas
+            screen.blit(player.image, player.rect)  # Luego el jugador
+            
+            # Por último las UI
             player.draw_health_bar(screen)
             if enemy:
                 enemy.draw_health_bar(screen)
