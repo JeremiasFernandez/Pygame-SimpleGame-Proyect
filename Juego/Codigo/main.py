@@ -155,7 +155,6 @@ while running:
             if enemy:
                 screen.blit(enemy.image, enemy.rect)
                 enemy.draw_health_bar(screen)
-                enemy.draw_dialogue(screen)
                 # Asegurar que transiciones críticas (como fase 3) no se pierdan en 'menu'
                 try:
                     enemy.check_phase3_transition()
@@ -168,7 +167,6 @@ while running:
             if enemy:
                 screen.blit(enemy.image, enemy.rect)
                 enemy.draw_health_bar(screen)
-                enemy.draw_dialogue(screen)
                 # También verificar transiciones durante 'ataque'
                 try:
                     enemy.check_phase3_transition()
@@ -200,7 +198,6 @@ while running:
             player.draw_health_bar(screen)
             if enemy:
                 enemy.draw_health_bar(screen)
-                enemy.draw_dialogue(screen)
 
             if player.hp <= 0:
                 pygame.mixer.music.stop()

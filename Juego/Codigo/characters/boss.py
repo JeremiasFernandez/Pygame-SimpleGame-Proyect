@@ -63,7 +63,13 @@ class Boss(pygame.sprite.Sprite):
         # Ataques por fase
         self.phase1_attacks = ["attack_tutorial", "attack_rain", "attack_diagonal", "attack_lateral1", "attack_lateral2", "attack_burst1", "attack_burst3"]
         self.phase2_attacks = ["attack_spears", "attack_spearstorm"]  # Phase 2 only uses spear attacks
-        self.phase3_attacks = ["attack_spears", "attack_spearstorm"]  # Ataques más intensos
+        # Ataques más intensos (fase 3)
+        self.phase3_attacks = [
+            "attack_spears",
+            "attack_spearstorm",
+            "attack_spearain",
+            "attack_spearwaves",
+        ]
 
         # Variables de animación y efectos visuales
         self.phase2_red_base = (54, 0, 0)
@@ -256,6 +262,13 @@ class Boss(pygame.sprite.Sprite):
             surf.fill((180, 60, 60, 255))
             self.image = surf
         self.rect = self.image.get_rect(center=center)
+        # Reubicar el sprite de la fase 2 para que quede por encima del border
+        try:
+            margin = 12  # separación sobre el borde
+            self.rect.midbottom = (c.ANCHO // 2, c.BOX_Y - margin)
+        except Exception:
+            # Si por alguna razón no hay Const o BOX_Y, conservar la posición original aproximada
+            self.rect.center = (c.ANCHO // 2, 120)
         
         # Ajustar dificultad y estado
         self.difficulty = 1.3

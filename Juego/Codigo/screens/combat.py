@@ -1,4 +1,5 @@
 import pygame
+import random
 import Const as c
 import os
 
@@ -37,6 +38,7 @@ class AttackEffect(pygame.sprite.Sprite):
 class CombatSystem:
     def __init__(self):
         self.state = "menu"
+        # Volver a la fuente por defecto usada antes
         self.font = pygame.font.Font(None, 36)
         self.selected = 0
         self.timer = 0
@@ -54,15 +56,85 @@ class CombatSystem:
             print(f"❌ No se pudo cargar Attack.wav: {e}")
 
         try:
-            self.heal_sound = pygame.mixer.Sound(os.path.join("Juego", "assets", "Sounds", "healup.mp3"))
-            self.heal_sound.set_volume(0.2)
+            self.curarse_sound = pygame.mixer.Sound(os.path.join("Juego", "assets", "Sounds", "healup.mp3"))
+            self.curarse_sound.set_volume(0.2)
         except Exception as e:
-            self.heal_sound = None
+            self.curarse_sound = None
             print(f"❌ No se pudo cargar healup.mp3: {e}")
 
         self.attack_effect = None
         self.enemy_shake_timer = 0
         self.enemy_base_pos = None
+
+        # --- Diálogos de menú ---
+        # Agrega aquí todos los textos que quieras que aparezcan aleatoriamente al entrar al menú.
+        self.menu_dialogues = [
+            "Atacar o curarse?",
+            "Eliminar el virus te llena de determinacion",
+            "El virus te está observando",
+            "Un golpe menos",
+            "El Virus busca venganza",
+            "Tu computadora no sanara sola",
+            "Tratas de comprender la figura del enemigo",
+            "El enemigo te clava la mirada",
+            "Preferirias estar en la cama",
+            "No aprobaras el examen si no lo eliminas",
+            "Te sientes debil",
+            "El virus hace poses extrañas",
+            "El virus baila samba",
+            "El virus esta burlando de tu nota de programacion",
+            "Se nota que no es tu primer intento",
+            "TLauncher te esta observando",
+            "Saludos a la UTN",
+            "Pulsa la X si queres",
+            "Spyware detected",
+            "El virus se aburre y mira TikTok",
+            "Cick, Click",
+            "Vos podes",
+            "...",
+            "....",
+            ".....",
+            "¿Dificil?",
+            "El enemigo se ve pensativo",
+            "El enemigo golpea al piso",
+            "¿Virtual o real?,"
+            "¡Cuidado con el borde!"
+            ""
+        ]
+        self._menu_dialog_current = None
+        self._menu_dialog_color = (240, 240, 255)
+        self._menu_dialog_margin = 14
+
+        # Seleccionar diálogo para el primer menú
+        self._pick_menu_dialog()
+
+    def _pick_menu_dialog(self):
+        if not self.menu_dialogues:
+            self._menu_dialog_current = None
+            return
+        self._menu_dialog_current = random.choice(self.menu_dialogues)
+
+    
+
+    def _wrap_text(self, text, font, max_width):
+        words = text.split()
+        lines = []
+        line = ""
+        for w in words:
+            test = (line + " " + w).strip()
+            if font.size(test)[0] <= max_width:
+                line = test
+            else:
+                if line:
+                    lines.append(line)
+                line = w
+        if line:
+            lines.append(line)
+        return lines
+
+    def enter_menu(self):
+        self.state = "menu"
+        self._pick_menu_dialog()
 
     def _pressed_once(self, now, prev_attr):
         prev = getattr(self, prev_attr)
@@ -100,9 +172,9 @@ class CombatSystem:
                     self.state = "ataque"
                 else:
                     player.hp = min(player.hp + 15, 20)
-                    if self.heal_sound:
+                    if self.curarse_sound:
                         print("▶️ Reproduciendo healup.mp3")
-                        self.heal_sound.play()
+                        self.curarse_sound.play()
                     else:
                         print("❌ No se pudo reproducir healup.mp3")
                     self.state = "defensa"
@@ -124,7 +196,7 @@ class CombatSystem:
         elif self.state == "defensa":
             self.timer += 1
             if self.timer >= self.DEFENSA_DUR:
-                self.state = "menu"
+                self.enter_menu()
 
         if self.enemy_shake_timer > 0 and enemy:
             offset = (-2, 2)[self.enemy_shake_timer % 2]
@@ -135,12 +207,32 @@ class CombatSystem:
 
     def draw(self, screen, enemy=None):
         if self.state == "menu":
-            opciones = ["ATACAR", "OBJETOS"]
+            opciones = ["ATACAR", "CURARSE"]
             for i, texto in enumerate(opciones):
                 color = c.AMARILLO if i == self.selected else c.BLANCO
                 render = self.font.render(texto, True, color)
                 rect = render.get_rect(center=(c.ANCHO // 2 + (i * 200) - 100, c.ALTO - 80))
                 screen.blit(render, rect)
+
+            # Dibujar diálogo de menú dentro del border
+            if self._menu_dialog_current:
+                max_w = c.BOX_ANCHO - self._menu_dialog_margin * 2
+                lines = self._wrap_text(self._menu_dialog_current, self.font, max_w)
+                # Caja de fondo sutil
+                box_h = 8 + len(lines) * (self.font.get_height() + 2)
+                box_rect = pygame.Rect(c.BOX_X + self._menu_dialog_margin,
+                                       c.BOX_Y + self._menu_dialog_margin,
+                                       max_w,
+                                       box_h)
+                bg = pygame.Surface((box_rect.width, box_rect.height), pygame.SRCALPHA)
+                bg.fill((10, 10, 30, 120))
+                screen.blit(bg, box_rect.topleft)
+                # Texto
+                y = box_rect.top + 4
+                for ln in lines:
+                    surf = self.font.render(ln, True, self._menu_dialog_color)
+                    screen.blit(surf, (box_rect.left + 4, y))
+                    y += self.font.get_height() + 2
 
         elif self.state == "ataque":
             if enemy and hasattr(enemy, 'silencio_activo') and enemy.silencio_activo:

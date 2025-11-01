@@ -42,6 +42,17 @@ class AttackManager:
         self.bullets_group = bullets_group
         self.all_sprites = all_sprites
 
+        # --- Simple Bullet sprite (for normal bullets) ---
+        self.simplebullet10 = None  # 10x10 preescalado
+        try:
+            sb_path = os.path.join("Juego", "assets", "Sprites", "simplebullet.png")
+            sb_base = pygame.image.load(sb_path).convert_alpha()
+            self.simplebullet10 = pygame.transform.smoothscale(sb_base, (10, 10))
+            print(f"🔸 simplebullet cargado: {sb_path}")
+        except Exception:
+            # Fallback: se usará el cuadrado blanco por defecto del Bullet
+            print("ℹ️  simplebullet.png no encontrado; usando forma por defecto para balas simples")
+
         # Preload optional spear sprites in all directions (falls back to rectangles if missing)
         # Base spear.png is assumed to point UP; we derive DOWN/LEFT/RIGHT by rotation.
         self.spear_u80 = self.spear_d80 = self.spear_l80 = self.spear_r80 = None
@@ -64,6 +75,13 @@ class AttackManager:
         except Exception:
             # No sprite available; rectangular fallback will be used
             print("⚠️  Spear sprite no encontrado, usando rectángulos (buscado spear.png en Juego/assets/Sprites)")
+
+    def _apply_simple_sprite(self, b: Bullet):
+        """Aplica sprite simplebullet 10x10 si existe, conservando el centro."""
+        if self.simplebullet10 is not None:
+            center = b.rect.center
+            b.image = self.simplebullet10.copy()
+            b.rect = b.image.get_rect(center=center)
 
     def spawn(self, bullet):
         """Safely add bullet to relevant sprite groups."""
@@ -107,6 +125,7 @@ class AttackManager:
             x = random.randint(c.BOX_X + 10, c.BOX_X + c.BOX_ANCHO - 10)
             b = Bullet(x, c.BOX_Y - 20, 4)  # Creada 20px arriba del borde
             b.damage = 1
+            self._apply_simple_sprite(b)
             self.spawn(b)
 
     def attack_rain(self, timer=0, difficulty=1.0):
@@ -114,6 +133,7 @@ class AttackManager:
         if timer % step == 0:
             x = random.randint(c.BOX_X + 10, c.BOX_X + c.BOX_ANCHO - 10)
             b = Bullet(x, c.BOX_Y, max(1, int(6 * difficulty)))
+            self._apply_simple_sprite(b)
             self.spawn(b)
 
     def attack_diagonal(self, timer=0, difficulty=1.0):
@@ -126,6 +146,7 @@ class AttackManager:
             b.speed_y = max(1, int(5 * difficulty))
             b.damage = 2
             b.update = lambda b=b: self.move_diagonal(b)
+            self._apply_simple_sprite(b)
             self.spawn(b)
 
     def attack_lateral1(self, timer=0, difficulty=1.0):
@@ -139,6 +160,7 @@ class AttackManager:
             b.speed_y = 0
             b.damage = 3
             b.update = lambda b=b: self.move_diagonal(b)
+            self._apply_simple_sprite(b)
             self.spawn(b)
 
     def attack_lateral2(self, timer=0, difficulty=1.0):
@@ -152,6 +174,7 @@ class AttackManager:
             b.speed_y = 0
             b.damage = 3
             b.update = lambda b=b: self.move_diagonal(b)
+            self._apply_simple_sprite(b)
             self.spawn(b)
 
     def attack_burst1(self, timer=0, difficulty=1.0):
@@ -165,6 +188,7 @@ class AttackManager:
                 b = Bullet(center_x, center_y, 0)
                 b.damage = 3
                 b.update = lambda b=b, dx=dx, dy=dy: self.move_spiral(b, dx, dy)
+                self._apply_simple_sprite(b)
                 self.spawn(b)
 
     def attack_burst2(self, timer=0, difficulty=1.0):
@@ -178,6 +202,7 @@ class AttackManager:
                 b = Bullet(center_x, c.BOX_Y + 40, 0)
                 b.damage = 3
                 b.update = lambda b=b, dx=dx, dy=dy: self.move_spiral(b, dx, dy)
+                self._apply_simple_sprite(b)
                 self.spawn(b)
 
     def attack_burst3(self, timer=0, difficulty=1.0):
@@ -189,6 +214,7 @@ class AttackManager:
                 b.speed_y = max(1, int(6 * difficulty))
                 b.damage = 3
                 b.update = lambda b=b: self.move_diagonal(b)
+                self._apply_simple_sprite(b)
                 self.spawn(b)
 
     def attack_spiral(self, timer=0, difficulty=1.0):
@@ -202,6 +228,7 @@ class AttackManager:
                 b = Bullet(center_x, center_y, 0)
                 b.damage = 2
                 b.update = lambda dx=dx, dy=dy, b=b: self.move_spiral(b, dx, dy)
+                self._apply_simple_sprite(b)
                 self.spawn(b)
 
     def attack_spears(self, timer=0, difficulty=1.0):
@@ -270,27 +297,144 @@ class AttackManager:
                     b.update = lambda b=b: self.move_diagonal(b)
                     self.spawn(b)
 
-                else:
-                    # Lanza lateral muy lenta  
-                    y = random.randint(c.BOX_Y + 30, c.BOX_Y + c.BOX_ALTO - 30)
-                    lado = random.choice(["izq", "der"])
-                    if lado == "izq":
-                        x = c.BOX_X - 60
-                        dx = random.uniform(0.5, 1.2)  
-                    else:
-                        x = c.BOX_X + c.BOX_ANCHO + 60
-                        dx = -random.uniform(0.5, 1.2)
+    # =====================
+    #  PHASE 3 SPEAR ATTACKS
+    # =====================
+    def attack_spearain(self, timer=0, difficulty=1.0):
+        """Lluvia vertical de lanzas (versión spear del rain de fase 1)."""
+        step = max(1, int(8 / max(0.1, difficulty)))  # menos frecuente
+        if timer % step == 0:
+            x = random.randint(c.BOX_X + 20, c.BOX_X + c.BOX_ANCHO - 20)
+            b = Bullet(x, c.BOX_Y - 60, 0)
+            # Imagen y orientación: cae hacia abajo
+            if self.spear_d80 is not None:
+                b.image = self.spear_d80.copy()
+            else:
+                b.image = pygame.Surface((10, 80), pygame.SRCALPHA)
+                b.image.fill((200, 210, 255, 240))
+            b.rect = b.image.get_rect(center=(x, c.BOX_Y - 20))
+            b.speed_x = 0
+            b.speed_y = max(2, int(4 * difficulty))  # más lenta (antes era 9)
+            b.damage = 5
+            b.update = lambda b=b: self.move_diagonal(b)
+            self.spawn(b)
 
-                    b = Bullet(x, y, 0)
-                    if dx > 0 and self.spear_r70 is not None:
-                        b.image = self.spear_r70.copy()
-                    elif dx < 0 and self.spear_l70 is not None:
-                        b.image = self.spear_l70.copy()
-                    else:
-                        b.image = pygame.Surface((70, 10), pygame.SRCALPHA).convert_alpha()
-                        b.image.fill((180, 200, 255, 220))
-                    b.rect = b.image.get_rect(center=(x, y))
-                    b.speed_x = dx
-                    b.damage = 4
-                    b.update = lambda b=b: self.move_diagonal(b)
-                    self.spawn(b)
+    def attack_diagonalspear(self, timer=0, difficulty=1.0):
+        """Ataques diagonales con lanzas (basado en attack_diagonal)."""
+        step = max(1, int(5 / max(0.1, difficulty)))
+        if timer % step == 0:
+            direction = random.choice([-1, 1])
+            x = random.randint(c.BOX_X + 40, c.BOX_X + c.BOX_ANCHO - 40)
+            b = Bullet(x, c.BOX_Y - 40, 0)
+            # Usamos sprite hacia abajo; con 4 orientaciones no rotamos al ángulo exacto
+            if self.spear_d80 is not None:
+                b.image = self.spear_d80.copy()
+            else:
+                b.image = pygame.Surface((10, 80), pygame.SRCALPHA)
+                b.image.fill((200, 210, 255, 240))
+            b.rect = b.image.get_rect(center=(x, c.BOX_Y - 10))
+            b.speed_x = direction * max(2, int(4 * difficulty))
+            b.speed_y = max(3, int(7 * difficulty))
+            b.damage = 6
+            b.update = lambda b=b: self.move_diagonal(b)
+            self.spawn(b)
+
+    def attack_spearwaves(self, timer=0, difficulty=1.0):
+        """Rondas de 6-8 lanzas que caen juntas desde arriba, por oleadas."""
+        wave_period = max(40, int(120 / max(0.25, difficulty)))  # oleadas más espaciadas
+        if timer % wave_period == 0:
+            count = random.choice([6])
+            # Distribuir de forma casi uniforme dentro del border
+            spacing = (c.BOX_ANCHO // (count + 1))
+            for i in range(1, count + 1):
+                x = c.BOX_X + i * spacing
+                b = Bullet(x, c.BOX_Y - 60, 0)
+                if self.spear_d80 is not None:
+                    b.image = self.spear_d80.copy()
+                else:
+                    b.image = pygame.Surface((10, 80), pygame.SRCALPHA)
+                    b.image.fill((210, 220, 255, 240))
+                b.rect = b.image.get_rect(center=(x, c.BOX_Y - 20))
+                b.speed_y = max(2, int(4 * difficulty))  # más lenta (antes era 8)
+                b.damage = 5
+                b.update = lambda b=b: self.move_diagonal(b)
+                self.spawn(b)
+
+    def attack_epicborderspear(self, timer=0, difficulty=1.0):
+        """Ataque épico: forma un marco de spears pegadas a los 4 bordes del box moviéndose hacia adentro.
+        Las spears salen de los 4 lados formando un rectángulo/marco completo, sin spears en el medio.
+        """
+        edge_period = max(15, int(40 / max(0.2, difficulty)))  # oleadas espaciadas
+        if timer % edge_period == 0:
+            spear_spacing = 30  # separación entre spears para formar marco denso
+            
+            # TOP: línea horizontal completa de spears cayendo desde arriba
+            n_top = (c.BOX_ANCHO // spear_spacing)
+            for i in range(n_top):
+                x = c.BOX_X + (i * spear_spacing) + (spear_spacing // 2)
+                b = Bullet(x, c.BOX_Y - 80, 0)
+                if self.spear_d70 is not None:
+                    b.image = self.spear_d70.copy()
+                else:
+                    b.image = pygame.Surface((10, 70), pygame.SRCALPHA)
+                    b.image.fill((200, 200, 255, 240))
+                b.rect = b.image.get_rect(center=(x, c.BOX_Y - 30))
+                b.speed_y = max(1, int(2 * difficulty))
+                b.damage = 4
+                b.update = lambda b=b: self.move_diagonal(b)
+                self.spawn(b)
+
+            # BOTTOM: línea horizontal completa de spears subiendo desde abajo
+            n_bottom = (c.BOX_ANCHO // spear_spacing)
+            for i in range(n_bottom):
+                x = c.BOX_X + (i * spear_spacing) + (spear_spacing // 2)
+                b = Bullet(x, c.BOX_Y + c.BOX_ALTO + 60, 0)
+                if getattr(self, 'spear_u70', None) is not None:
+                    b.image = self.spear_u70.copy()
+                else:
+                    b.image = pygame.Surface((10, 70), pygame.SRCALPHA)
+                    b.image.fill((200, 200, 255, 240))
+                b.rect = b.image.get_rect(center=(x, c.BOX_Y + c.BOX_ALTO + 20))
+                b.speed_y = -max(1, int(2 * difficulty))
+                b.damage = 4
+                b.update = lambda b=b: self.move_diagonal(b)
+                self.spawn(b)
+
+            # IZQUIERDA: línea vertical completa de spears viniendo desde la izquierda
+            n_left = (c.BOX_ALTO // spear_spacing)
+            for i in range(n_left):
+                y = c.BOX_Y + (i * spear_spacing) + (spear_spacing // 2)
+                x = c.BOX_X - 60
+                dx = max(1, int(2 * difficulty))
+                b = Bullet(x, y, 0)
+                if self.spear_r70 is not None:
+                    b.image = self.spear_r70.copy()
+                else:
+                    b.image = pygame.Surface((70, 10), pygame.SRCALPHA)
+                    b.image.fill((200, 200, 255, 240))
+                b.rect = b.image.get_rect(center=(x, y))
+                b.speed_x = dx
+                b.update = lambda b=b: self.move_diagonal(b)
+                b.damage = 4
+                self.spawn(b)
+
+            # DERECHA: línea vertical completa de spears viniendo desde la derecha
+            n_right = (c.BOX_ALTO // spear_spacing)
+            for i in range(n_right):
+                y = c.BOX_Y + (i * spear_spacing) + (spear_spacing // 2)
+                x = c.BOX_X + c.BOX_ANCHO + 60
+                dx = -max(1, int(2 * difficulty))
+                b = Bullet(x, y, 0)
+                if self.spear_l70 is not None:
+                    b.image = self.spear_l70.copy()
+                else:
+                    b.image = pygame.Surface((70, 10), pygame.SRCALPHA)
+                    b.image.fill((200, 200, 255, 240))
+                b.rect = b.image.get_rect(center=(x, y))
+                b.speed_x = dx
+                b.update = lambda b=b: self.move_diagonal(b)
+                b.damage = 4
+                self.spawn(b)
+                
+
+                
