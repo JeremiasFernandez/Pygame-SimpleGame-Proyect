@@ -66,6 +66,50 @@ class CombatSystem:
         self.enemy_shake_timer = 0
         self.enemy_base_pos = None
 
+        # --- Barra de tiempo de defensa ---
+        self.defense_bar_height = 4  # línea delgada
+        self.defense_bar_margin = 8  # píxeles por encima del border
+        self.defense_bar_bg = (40, 40, 60, 160)  # fondo semi-transparente
+        self.defense_bar_fg = (232, 232, 232)      # color de la barra (restante)
+
+        # --- Sprites para botones de menú (50x23) ---
+        self.atacar_normal = None
+        self.atacar_selected = None
+        self.curarse_normal = None
+        self.curarse_selected = None
+        
+        try:
+            atacar_n_path = os.path.join("Juego", "assets", "Sprites", "atacar_normal.png")
+            self.atacar_normal = pygame.image.load(atacar_n_path).convert_alpha()
+            self.atacar_normal = pygame.transform.scale(self.atacar_normal, (100, 46))
+            print(f"✅ Sprite atacar_normal cargado: {atacar_n_path}")
+        except Exception:
+            print("ℹ️  atacar_normal.png no encontrado; usando texto")
+        
+        try:
+            atacar_s_path = os.path.join("Juego", "assets", "Sprites", "atacar_selected.png")
+            self.atacar_selected = pygame.image.load(atacar_s_path).convert_alpha()
+            self.atacar_selected = pygame.transform.scale(self.atacar_selected, (100, 46))
+            print(f"✅ Sprite atacar_selected cargado: {atacar_s_path}")
+        except Exception:
+            print("ℹ️  atacar_selected.png no encontrado; usando texto")
+        
+        try:
+            curarse_n_path = os.path.join("Juego", "assets", "Sprites", "curarse_normal.png")
+            self.curarse_normal = pygame.image.load(curarse_n_path).convert_alpha()
+            self.curarse_normal = pygame.transform.scale(self.curarse_normal, (100, 46))
+            print(f"✅ Sprite curarse_normal cargado: {curarse_n_path}")
+        except Exception:
+            print("ℹ️  curarse_normal.png no encontrado; usando texto")
+        
+        try:
+            curarse_s_path = os.path.join("Juego", "assets", "Sprites", "curarse_selected.png")
+            self.curarse_selected = pygame.image.load(curarse_s_path).convert_alpha()
+            self.curarse_selected = pygame.transform.scale(self.curarse_selected, (100, 46))
+            print(f"✅ Sprite curarse_selected cargado: {curarse_s_path}")
+        except Exception:
+            print("ℹ️  curarse_selected.png no encontrado; usando texto")
+
         # --- Diálogos de menú ---
         # Agrega aquí todos los textos que quieras que aparezcan aleatoriamente al entrar al menú.
         self.menu_dialogues = [
@@ -98,8 +142,29 @@ class CombatSystem:
             "El enemigo se ve pensativo",
             "El enemigo golpea al piso",
             "¿Virtual o real?,"
-            "¡Cuidado con el borde!"
-            ""
+            "¡Cuidado con el borde!",
+            "El enemigo te muestra sus músculos",
+            "Te falta odio",
+            "El enemigo se ríe de ti",
+            "Windows defender was disabled",
+            "Pensaste que era un problema, pero era yo, el virus!",
+            "El virus entro a %%APPDATA%%",
+            "El virus se burla de tu falta de atención",
+            "El virus: ez",
+            "El virus: so easy",
+            "El virus: gg no player",
+            "El virus: Casi uso las manos",
+            "El virus: ¿como se le sube la dificultad al bot?",
+            "La oscuridad revela la luz",
+            "El dolor forja la fuerza",
+            "La derrota es solo un paso hacia la victoria",
+            "Tu vida: 3hp",
+            "Tu determinacion: 15%",
+            "Intentos: 67",
+            "desinstalando Linkedin...",
+            "Un gmail ha llegado: 'Felicidades has ganado un premio!!'"
+            "Notificacion recibida: 'Если вы это читаете, вы молодец.' "
+
         ]
         self._menu_dialog_current = None
         self._menu_dialog_color = (240, 240, 255)
@@ -208,11 +273,27 @@ class CombatSystem:
     def draw(self, screen, enemy=None):
         if self.state == "menu":
             opciones = ["ATACAR", "CURARSE"]
-            for i, texto in enumerate(opciones):
-                color = c.AMARILLO if i == self.selected else c.BLANCO
-                render = self.font.render(texto, True, color)
-                rect = render.get_rect(center=(c.ANCHO // 2 + (i * 200) - 100, c.ALTO - 80))
-                screen.blit(render, rect)
+            
+            # Determinar qué sprites usar
+            sprites = [
+                (self.atacar_selected if self.selected == 0 else self.atacar_normal),
+                (self.curarse_selected if self.selected == 1 else self.curarse_normal)
+            ]
+            
+            for i, (texto, sprite) in enumerate(zip(opciones, sprites)):
+                x = c.ANCHO // 2 + (i * 200) - 100
+                y = c.ALTO - 80
+                
+                # Si el sprite existe, dibujarlo; si no, usar texto
+                if sprite:
+                    sprite_rect = sprite.get_rect(center=(x, y))
+                    screen.blit(sprite, sprite_rect)
+                else:
+                    # Fallback a texto
+                    color = c.AMARILLO if i == self.selected else c.BLANCO
+                    render = self.font.render(texto, True, color)
+                    rect = render.get_rect(center=(x, y))
+                    screen.blit(render, rect)
 
             # Dibujar diálogo de menú dentro del border
             if self._menu_dialog_current:
@@ -242,3 +323,27 @@ class CombatSystem:
 
         if self.attack_effect:
             screen.blit(self.attack_effect.image, self.attack_effect.rect)
+
+    def draw_defense_timer_bar(self, screen: pygame.Surface):
+        """Dibuja una barra delgada arriba del border que se achica con el tiempo de defensa restante."""
+        # Calcular progreso restante (1.0 -> 0.0)
+        dur = max(1, getattr(self, 'DEFENSA_DUR', 1))
+        t = max(0, min(self.timer, dur))
+        frac_left = 1.0 - (t / dur)
+
+        # Geometría de la barra
+        full_w = c.BOX_ANCHO
+        bar_w = int(full_w * frac_left)
+        bar_h = self.defense_bar_height
+        x = c.BOX_X
+        y = max(0, c.BOX_Y - self.defense_bar_margin - bar_h)
+
+        # Fondo (track) semi-transparente del ancho completo
+        track = pygame.Surface((full_w, bar_h), pygame.SRCALPHA)
+        track.fill(self.defense_bar_bg)
+        screen.blit(track, (x, y))
+
+        # Barra restante (se achica con el tiempo)
+        if bar_w > 0:
+            rect_fg = pygame.Rect(x, y, bar_w, bar_h)
+            pygame.draw.rect(screen, self.defense_bar_fg, rect_fg)

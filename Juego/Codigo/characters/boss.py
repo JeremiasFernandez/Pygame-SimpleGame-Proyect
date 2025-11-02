@@ -35,7 +35,8 @@ class Boss(pygame.sprite.Sprite):
         self.hp = 200
         self.phase = 1
         self.difficulty = 1.0
-        self.current_attack = "tutorial"
+        self.current_attack = None
+        self._first_attack_forced = False
         self.music_playing = False
         self._phase2_entered = False
         self.phase2_music_started = False
@@ -45,7 +46,13 @@ class Boss(pygame.sprite.Sprite):
         except:
             img1 = pygame.Surface((200, 200), pygame.SRCALPHA); img1.fill((220,220,220,255))
         self.image = pygame.transform.scale(img1, (200, 200))
-        self.rect = self.image.get_rect(center=(c.ANCHO // 2, 140))
+        # Posición inicial SIEMPRE sobre el border
+        self.rect = self.image.get_rect()
+        try:
+            margin = 12
+            self.rect.midbottom = (c.ANCHO // 2, c.BOX_Y - margin)
+        except Exception:
+            self.rect.center = (c.ANCHO // 2, 120)
 
         try:
             img2 = pygame.image.load("Juego/assets/sprites/Boss_Virus_2.png").convert_alpha()
@@ -63,12 +70,14 @@ class Boss(pygame.sprite.Sprite):
         # Ataques por fase
         self.phase1_attacks = ["attack_tutorial", "attack_rain", "attack_diagonal", "attack_lateral1", "attack_lateral2", "attack_burst1", "attack_burst3"]
         self.phase2_attacks = ["attack_spears", "attack_spearstorm"]  # Phase 2 only uses spear attacks
-        # Ataques más intensos (fase 3)
+        # Ataques más intensos (fase 3) - ¡CREATIVOS Y BALANCEADOS!
         self.phase3_attacks = [
             "attack_spears",
             "attack_spearstorm",
             "attack_spearain",
             "attack_spearwaves",
+            "attack_spearcross",    # ➕ Cruz expansiva
+            "attack_ballscircle",   # ⭕ Círculo de bolas giratorias
         ]
 
         # Variables de animación y efectos visuales
@@ -84,6 +93,19 @@ class Boss(pygame.sprite.Sprite):
 
     def update(self):
         """Actualiza el estado del jefe."""
+        # Si ya murió definitivamente, esperar unos segundos y marcar victoria
+        if getattr(self, "_muerte_final", False):
+            # Inicializar temporizador de victoria si no existe
+            if not hasattr(self, "_victory_timer"):
+                self._victory_timer = 180  # ~3s a 60 FPS
+                self.victory_ready = False
+            # Decrementar timer
+            if self._victory_timer > 0:
+                self._victory_timer -= 1
+                if self._victory_timer == 0:
+                    self.victory_ready = True
+            return
+
         self.timer += 1
         
         # Control de diálogo
@@ -91,6 +113,10 @@ class Boss(pygame.sprite.Sprite):
             self.dialogo_timer -= 1
             if self.dialogo_timer == 0:
                 self.dialogo = ""
+
+        # Actualizar efecto de titileo del spearcross
+        if hasattr(self.attack_manager, 'update_spearcross_flash'):
+            self.attack_manager.update_spearcross_flash()
 
         # --- PHASE 1 & 2: select and execute attacks normally (unless silence active)
         if self.phase in (1, 2) and not self.silencio_activo:
@@ -199,7 +225,13 @@ class Boss(pygame.sprite.Sprite):
                 # Cambiar sprite y detener música
                 self.image = pygame.image.load("Juego/assets/Sprites/boss_derrotado.png").convert_alpha()
                 self.image = pygame.transform.scale(self.image, (300, 300))
-                self.rect = self.image.get_rect(center=(c.ANCHO // 2, 140))
+                # Anclar igual que las otras fases (midbottom con margin=12)
+                self.rect = self.image.get_rect()
+                try:
+                    margin = 12
+                    self.rect.midbottom = (c.ANCHO // 2, c.BOX_Y - margin)
+                except Exception:
+                    self.rect.center = (c.ANCHO // 2, 140)
                 
                 # Detener música actual y reproducir silencio
                 pygame.mixer.music.stop()
@@ -262,13 +294,14 @@ class Boss(pygame.sprite.Sprite):
             surf.fill((180, 60, 60, 255))
             self.image = surf
         self.rect = self.image.get_rect(center=center)
-        # Reubicar el sprite de la fase 2 para que quede por encima del border
+        # Posicionar IGUAL que fase 1 (margin=12)
         try:
-            margin = 12  # separación sobre el borde
+            margin = 12  # Mismo que fase 1
             self.rect.midbottom = (c.ANCHO // 2, c.BOX_Y - margin)
         except Exception:
-            # Si por alguna razón no hay Const o BOX_Y, conservar la posición original aproximada
             self.rect.center = (c.ANCHO // 2, 120)
+        # Reanclar posición base horizontal para movimiento lateral en fase 2
+        self.original_x = self.rect.centerx
         
         # Ajustar dificultad y estado
         self.difficulty = 1.3
@@ -282,6 +315,15 @@ class Boss(pygame.sprite.Sprite):
     def cambiar_ataque(self):
         """Cambia el ataque actual basado en la fase."""
         try:
+            # Forzar que el PRIMER ataque de la fase 1 sea el tutorial
+            if self.phase == 1 and not getattr(self, "_first_attack_forced", False):
+                self.current_attack = "attack_tutorial"
+                self._first_attack_forced = True
+                self.attack_timer = 120
+                self.decir("¡EMPEZAMOS! (Tutorial)")
+                print("🎓 Primer ataque forzado: attack_tutorial")
+                return
+
             # Determinar pool de ataques basado en la fase
             if self.phase == 1:
                 ataques = self.phase1_attacks
@@ -348,6 +390,19 @@ class Boss(pygame.sprite.Sprite):
         self.dialogo = texto
         self.dialogo_timer = duracion
 
+    def draw_flash_effect(self, screen):
+        """Dibuja el efecto de flash blanco (separado del diálogo)."""
+        if self.flash_alpha > 0:
+            flash_surface = pygame.Surface((c.ANCHO, c.ALTO))
+            flash_surface.fill((255, 255, 255))
+            flash_surface.set_alpha(self.flash_alpha)
+            screen.blit(flash_surface, (0, 0))
+
+    def draw_cross_indicator(self, screen):
+        """Dibuja el indicador de warning del spearcross."""
+        if hasattr(self.attack_manager, 'draw_spearcross_flash'):
+            self.attack_manager.draw_spearcross_flash(screen)
+
     def draw_dialogue(self, screen):
         # Dibujar efectos visuales de fase 3
         if self.phase == 3:
@@ -357,11 +412,7 @@ class Boss(pygame.sprite.Sprite):
             screen.blit(bg_surface, (0, 0), special_flags=pygame.BLEND_RGB_ADD)
             
             # Efecto de destello blanco
-            if self.flash_alpha > 0:
-                flash_surface = pygame.Surface((c.ANCHO, c.ALTO))
-                flash_surface.fill((255, 255, 255))
-                flash_surface.set_alpha(self.flash_alpha)
-                screen.blit(flash_surface, (0, 0))
+            self.draw_flash_effect(screen)
 
         # Dibujar el diálogo
         if not self.dialogo: return
@@ -403,6 +454,43 @@ class Boss(pygame.sprite.Sprite):
         self.particles = alive
 
 
+    def draw_phase3_background(self, screen):
+        """Dibuja fondo y partículas para fase 3 (muchas más que fase 2)."""
+        if self.phase != 3:
+            return
+        
+        # Spawn de muchas más partículas (probabilidad más alta y más cantidad)
+        if random.random() < 0.6:  # Era 0.25 en fase 2, ahora 0.6
+            num_particles = random.randint(2, 4)  # Spawn múltiples partículas a la vez
+            for _ in range(num_particles):
+                while True:
+                    x = random.randint(0, c.ANCHO)
+                    y = random.randint(0, c.ALTO)
+                    # Evitar spawneo dentro del border
+                    if not (c.BOX_X < x < c.BOX_X + c.BOX_ANCHO and c.BOX_Y < y < c.BOX_Y + c.BOX_ALTO):
+                        break
+                dx = random.uniform(-0.5, 0.5)
+                dy = random.uniform(-1.2, -0.4)
+                size = random.randint(1, 3)  # Tamaños variados
+                life = random.randint(80, 150)  # Vida más larga
+                # Colores variados para fase 3 (naranja, amarillo, rojo)
+                color = random.choice([(255, 200, 0), (255, 128, 0), (255, 100, 50)])
+                self.particles.append([x, y, dx, dy, size, life, color])
+        
+        # Renderizar partículas
+        alive = []
+        for (x, y, dx, dy, size, life, color) in self.particles:
+            x += dx
+            y += dy
+            life -= 1
+            if life > 0:
+                alpha = max(0, min(200, life + 80))
+                s = pygame.Surface((size*2, size*2), pygame.SRCALPHA)
+                pygame.draw.circle(s, (*color, alpha), (size, size), size)
+                screen.blit(s, (x, y))
+                alive.append([x, y, dx, dy, size, life, color])
+        self.particles = alive
+
 
     def _activar_fase3(self):
         """Activa la fase 3 del jefe después del período de silencio."""
@@ -410,21 +498,39 @@ class Boss(pygame.sprite.Sprite):
         try:
             # 1. Detener silence.wav si está sonando
             if hasattr(self, 'silence_sound') and self.silence_sound:
+                print("🔇 Deteniendo silence.wav...")
                 self.silence_sound.stop()
+                pygame.mixer.stop()  # Detener TODOS los efectos de sonido
+                del self.silence_sound
 
             # 2. Efecto de destello blanco + flash sound
             self.flash_alpha = 255  # Pantalla completamente blanca
             try:
+                # Cargar y reproducir flash.wav INMEDIATAMENTE
                 flash_sound = pygame.mixer.Sound("Juego/assets/Sounds/flash.wav")
-                flash_sound.play()
+                flash_sound.set_volume(1.0)  # Volumen máximo
+                channel = flash_sound.play()
+                if channel:
+                    print("🔊 flash.wav reproduciendo correctamente")
+                else:
+                    print("❌ No se pudo reproducir flash.wav - no hay canales disponibles")
+            except FileNotFoundError:
+                print(f"❌ Error: No se encuentra Juego/assets/Sounds/flash.wav")
             except Exception as e:
                 print(f"❌ Error cargando flash.wav: {e}")
 
-            # 3. Cargar sprite
+            # 3. Cargar sprite y posicionarlo IGUAL que fase 1
             img = pygame.image.load("Juego/assets/Sprites/Boss_Virus_3.png").convert_alpha()
             self.image = pygame.transform.scale(img, (233, 350))
-            self.rect = self.image.get_rect(center=(c.ANCHO // 2, 140))
-            self.original_x = self.rect.centerx
+            self.rect = self.image.get_rect()
+            # Posicionar IGUAL que fase 1 (margin=12)
+            try:
+                margin = 12  # Mismo que fases 1 y 2
+                self.rect.midbottom = (c.ANCHO // 2, c.BOX_Y - margin)
+                self.original_x = self.rect.centerx
+            except Exception:
+                self.rect.center = (c.ANCHO // 2, 120)
+                self.original_x = self.rect.centerx
             
             # 4. Cambiar música
             pygame.mixer.music.stop()
@@ -437,7 +543,7 @@ class Boss(pygame.sprite.Sprite):
             
             # 4. Restaurar vida y configurar fase 3
             self.phase = 3
-            self.hp = 50  # Resucita con +50 HP
+            self.hp = 70  # Resucita con 70 HP (antes era 50)
             self.difficulty = 1.6
             self.attack_timer = 0
             self.current_attack = random.choice(self.phase3_attacks)
@@ -456,7 +562,7 @@ class Boss(pygame.sprite.Sprite):
             print("❌ Error activando fase 3:", e)
             # Intentar recuperarse del error
             self.phase = 3
-            self.hp = 50
+            self.hp = 70
             self.puede_ser_atacado = True
             self.silencio_activo = False
             

@@ -33,6 +33,65 @@ border = Border()
 combate = None
 intentos = 0
 
+# --- Tutorial Hint (sprite arriba a la derecha con fadeout) ---
+tutorial_hint_img = None
+tutorial_hint_total = 10 * c.FPS  # ~10 segundos
+tutorial_hint_ticks = 0
+
+def _init_tutorial_hint():
+    global tutorial_hint_img, tutorial_hint_ticks
+    tutorial_hint_ticks = tutorial_hint_total
+    if tutorial_hint_img is None:
+        try:
+            path = os.path.join("Juego", "assets", "Sprites", "tutorial_hint.png")
+            img = pygame.image.load(path).convert_alpha()
+            # Triplicar su tamaño explícitamente
+            new_w = int(img.get_width() * 3)
+            new_h = int(img.get_height() * 3)
+            if new_w > 0 and new_h > 0:
+                img = pygame.transform.smoothscale(img, (new_w, new_h))
+            tutorial_hint_img = img
+            print(f"ℹ️ Tutorial hint cargado: {path}")
+        except Exception as e:
+            tutorial_hint_img = None
+            print(f"⚠️ No se pudo cargar tutorial_hint.png: {e}")
+
+def _draw_tutorial_hint(screen, enemy):
+    global tutorial_hint_ticks
+    if tutorial_hint_ticks <= 0:
+        return
+    if tutorial_hint_img is None:
+        # Fallback: cajita con texto
+        alpha = int(200 * (tutorial_hint_ticks / tutorial_hint_total))
+        box = pygame.Surface((220, 50), pygame.SRCALPHA)
+        box.fill((20, 20, 40, alpha))
+        txt = pygame.font.Font(None, 24).render("Usa X y esquiva!", True, (255, 255, 200))
+        box.blit(txt, (10, 15))
+        x = c.ANCHO - box.get_width() - 12
+        y = 12
+        # Si hay jefe, intentar ubicarla junto a su lado derecho
+        if enemy:
+            ex, ey, ew, eh = enemy.rect
+            x = min(c.ANCHO - box.get_width() - 12, ex + ew + 40)
+            y = max(12, ey + 60)
+        screen.blit(box, (x, y))
+    else:
+        # Calcular alpha por fadeout lineal
+        alpha = max(0, min(255, int(255 * (tutorial_hint_ticks / tutorial_hint_total))))
+        img = tutorial_hint_img.copy()
+        img.set_alpha(alpha)
+        # Posicionar al lado del jefe (preferido) o en esquina sup. derecha
+        x = c.ANCHO - img.get_width() - 12
+        y = 12
+        if enemy:
+            ex, ey, ew, eh = enemy.rect
+            # Más a la derecha y más abajo respecto del jefe
+            x = min(c.ANCHO - img.get_width() - 12, ex + ew + 40)
+            y = max(12, ey + 60)
+        screen.blit(img, (x, y))
+    # Decrementar contador por frame
+    tutorial_hint_ticks -= 1
+
 # ---------------------------------------------------------
 def mostrar_texto(texto, color, y):
     render = font.render(texto, True, color)
@@ -71,6 +130,7 @@ def reset_game():
     modo_juego = "batalla"
     intentos += 1
     reproducir_musica_aleatoria()
+    _init_tutorial_hint()
 
 # ---------------------------------------------------------
 running = True
@@ -109,6 +169,7 @@ while running:
             combate = combat.CombatSystem()
             intentos += 1
             reproducir_musica_aleatoria()
+            _init_tutorial_hint()
 
 
     # -----------------------------------------------------
@@ -124,6 +185,10 @@ while running:
         # Fondo especial Fase 2
         if enemy and hasattr(enemy, "draw_phase2_background"):
             enemy.draw_phase2_background(screen)
+        
+        # Fondo especial Fase 3 (con muchas más partículas)
+        if enemy and hasattr(enemy, "draw_phase3_background"):
+            enemy.draw_phase3_background(screen)
     else:
         screen.fill((54, 0, 0))
 
@@ -137,6 +202,12 @@ while running:
         keys = pygame.key.get_pressed()
         player.update(keys)
         combate.update(player, enemy)
+
+        # Si el jefe marcó victoria lista, pasar a pantalla de victoria
+        if enemy and getattr(enemy, 'victory_ready', False):
+            pygame.mixer.music.stop()
+            modo_juego = "victoria"
+            bullets.empty()
 
         # Efecto de texto “TROYANO LEGENDARIO”
         if enemy and enemy.phase == 2:
@@ -155,11 +226,13 @@ while running:
             if enemy:
                 screen.blit(enemy.image, enemy.rect)
                 enemy.draw_health_bar(screen)
+                enemy.draw_flash_effect(screen)  # Flash blanco para fase 3
                 # Asegurar que transiciones críticas (como fase 3) no se pierdan en 'menu'
                 try:
                     enemy.check_phase3_transition()
                 except Exception:
                     pass
+                _draw_tutorial_hint(screen, enemy)
             combate.draw(screen, enemy)
 
         elif combate.state == "ataque":
@@ -167,18 +240,26 @@ while running:
             if enemy:
                 screen.blit(enemy.image, enemy.rect)
                 enemy.draw_health_bar(screen)
+                enemy.draw_flash_effect(screen)  # Flash blanco para fase 3
                 # También verificar transiciones durante 'ataque'
                 try:
                     enemy.check_phase3_transition()
                 except Exception:
                     pass
+                _draw_tutorial_hint(screen, enemy)
             combate.draw(screen, enemy)
 
         elif combate.state == "defensa":
             # Primero actualizamos todo
             if enemy:
+                # Guardar fase anterior para detectar cambio a fase 3
+                prev_phase = enemy.phase
                 enemy.update()
                 enemy.check_phase3_transition()
+                # Si acabamos de entrar a fase 3, curar al jugador completamente
+                if prev_phase != 3 and enemy.phase == 3 and hasattr(enemy, '_fase3_activada'):
+                    player.hp = 20  # Vida completa
+                    print("💚 Jugador curado completamente al activarse fase 3")
             bullets.update()
             border.update(player)
 
@@ -190,6 +271,14 @@ while running:
 
             # Dibujado en orden correcto
             border.draw(screen)
+            # Barra delgada de tiempo de defensa (encima del border)
+            if hasattr(combate, 'draw_defense_timer_bar'):
+                combate.draw_defense_timer_bar(screen)
+            
+            # Dibujar indicador de spearcross (antes del jefe para que quede detrás)
+            if enemy and hasattr(enemy, 'draw_cross_indicator'):
+                enemy.draw_cross_indicator(screen)
+            
             screen.blit(enemy.image, enemy.rect)  # Primero el jefe
             bullets.draw(screen)  # Luego las balas
             screen.blit(player.image, player.rect)  # Luego el jugador
@@ -198,6 +287,8 @@ while running:
             player.draw_health_bar(screen)
             if enemy:
                 enemy.draw_health_bar(screen)
+                enemy.draw_flash_effect(screen)  # Flash blanco para fase 3
+                _draw_tutorial_hint(screen, enemy)
 
             if player.hp <= 0:
                 pygame.mixer.music.stop()
@@ -209,6 +300,13 @@ while running:
                     print("Error al reproducir GameOver:", e)
                 gameover.game_over_screen(screen, clock)
                 reset_game()
+
+    elif modo_juego == "victoria":
+        screen.fill((10, 10, 20))
+        titulo = pygame.font.Font(None, 80).render("¡VICTORIA!", True, (255, 230, 120))
+        subt  = pygame.font.Font(None, 36).render("(Pantalla final en construcción)", True, (220, 220, 220))
+        screen.blit(titulo, titulo.get_rect(center=(c.ANCHO//2, c.ALTO//2 - 20)))
+        screen.blit(subt,   subt.get_rect(center=(c.ANCHO//2, c.ALTO//2 + 30)))
 
     # --- Contador de intentos ---
     if intentos > 0:

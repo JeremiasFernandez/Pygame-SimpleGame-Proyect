@@ -17,7 +17,7 @@ class Player(pygame.sprite.Sprite):
         # --- Sprite actual ---
         self.image = self.image_normal
         self.rect = self.image.get_rect(center=(c.ANCHO // 2, c.ALTO - 100))
-        self.rect.inflate_ip(-15, -15)
+        self.rect.inflate_ip(-18, -18)  # Ajustar tamaño del rectángulo de colisión
 
         # --- Hitbox ---
         self.hitbox = pygame.Rect(0, 0, 10, 10)
