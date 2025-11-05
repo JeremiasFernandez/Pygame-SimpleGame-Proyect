@@ -205,7 +205,7 @@ class AttackManager:
             self.spawn(b)
 
     def attack_diagonal(self, timer=0, difficulty=1.0):
-        step = max(1, int(4 / max(0.1, difficulty)))
+        step = max(1, int(6 / max(0.1, difficulty)))
         if timer % step == 0:
             direction = random.choice([-1, 1])
             x = random.randint(c.BOX_X + 10, c.BOX_X + c.BOX_ANCHO - 10)

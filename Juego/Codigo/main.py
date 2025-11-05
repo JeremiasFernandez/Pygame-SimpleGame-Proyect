@@ -4,6 +4,11 @@ import characters.player as p
 import characters.bullet as bullet
 import characters.boss as boss
 import screens.gameover as gameover
+import screens.menu as menu_screen
+import screens.play_select as play_select
+import screens.practice as practice_screen
+import screens.options as options_screen
+import screens.credits as credits_screen
 from characters.border import Border
 import screens.combat as combat
 
@@ -14,7 +19,7 @@ pygame.mixer.init()
 
 # --- Ventana ---
 screen = pygame.display.set_mode((c.ANCHO, c.ALTO))
-pygame.display.set_caption("Bossfight: The Trojan Virus")
+pygame.display.set_caption("Bossfight: El troyano")
 clock = pygame.time.Clock()
 
 # --- Grupos ---
@@ -27,11 +32,21 @@ all_sprites.add(player)
 
 # --- Variables globales ---
 enemy = None
-modo_juego = "intro"
+modo_juego = "menu"  # Nuevo menú principal previo a 'intro'
 font = pygame.font.Font(None, 36)
 border = Border()
 combate = None
 intentos = 0
+fullscreen = False
+music_volume = 0.5
+current_music_tag = None  # 'menu' | 'battle' | None
+
+# --- Screens ---
+main_menu = menu_screen.MainMenu()
+playselect = None
+practicemenu = None
+optsmenu = None
+creditss = None
 
 # --- Tutorial Hint (sprite arriba a la derecha con fadeout) ---
 tutorial_hint_img = None
@@ -102,16 +117,39 @@ def mostrar_texto(texto, color, y):
 def reproducir_musica_aleatoria():
     """Selecciona y reproduce una canción de fase 1 al azar."""
     pygame.mixer.music.stop()
-    versiones = ["phase1", "phase1B", "phase1C", "phase1D", "phase1E", "phase1F", "phase1G"]
+    versiones = ["phase1", "phase1B", "phase1C", "phase1D", "phase1E", "phase1F", "phase1G", "phase1H"]
     eleccion = random.choice(versiones)
     ruta = f"Juego/assets/Soundtrack/{eleccion}.mp3"
     try:
         pygame.mixer.music.load(ruta)
-        pygame.mixer.music.set_volume(0.5)
+        try:
+            vol = music_volume
+        except NameError:
+            vol = 0.5
+        pygame.mixer.music.set_volume(vol)
         pygame.mixer.music.play(-1)
         print(f"🎵 Música seleccionada: {eleccion}")
     except Exception as e:
         print(f"⚠️ No se pudo cargar la música {eleccion}: {e}")
+    # Marcar como música de batalla
+    global current_music_tag
+    current_music_tag = "battle"
+
+def play_menu_music_if_needed():
+    """Reproduce el tema del menú si no está ya sonando."""
+    global current_music_tag
+    if current_music_tag == "menu":
+        return
+    try:
+        pygame.mixer.music.stop()
+        ruta = "Juego/assets/Soundtrack/menu_theme.mp3"
+        pygame.mixer.music.load(ruta)
+        pygame.mixer.music.set_volume(music_volume)
+        pygame.mixer.music.play(-1)
+        current_music_tag = "menu"
+        print("🎵 Música de menú reproduciendo: menu_theme.mp3")
+    except Exception as e:
+        print(f"⚠️ No se pudo reproducir menu_theme.mp3: {e}")
 
 # ---------------------------------------------------------
 def reset_game():
@@ -125,6 +163,11 @@ def reset_game():
 
     enemy = boss.Boss(bullets, all_sprites)
     all_sprites.add(enemy)
+    # Aplicar dificultad seleccionada
+    try:
+        enemy.difficulty = difficulty_factor
+    except Exception:
+        pass
 
     combate = combat.CombatSystem()
     modo_juego = "batalla"
@@ -133,9 +176,63 @@ def reset_game():
     _init_tutorial_hint()
 
 # ---------------------------------------------------------
+def apply_fullscreen(value: bool):
+    global screen, fullscreen
+    fullscreen = bool(value)
+    flags = pygame.FULLSCREEN if fullscreen else 0
+    screen = pygame.display.set_mode((c.ANCHO, c.ALTO), flags)
+
+def apply_music_volume(value: float):
+    global music_volume
+    music_volume = max(0.0, min(1.0, float(value)))
+    try:
+        pygame.mixer.music.set_volume(music_volume)
+    except Exception:
+        pass
+
+def start_battle(practice_phase: int | None = None):
+    """Inicia la batalla desde el menú o práctica.
+    practice_phase: 1,2,3 para saltar directo a esa fase.
+    """
+    global bullets, all_sprites, player, enemy, modo_juego, combate, intentos
+    bullets.empty(); all_sprites.empty()
+    player = p.Player(); all_sprites.add(player)
+    enemy = boss.Boss(bullets, all_sprites); all_sprites.add(enemy)
+    try:
+        enemy.difficulty = difficulty_factor
+    except Exception:
+        pass
+    combate = combat.CombatSystem()
+    modo_juego = "batalla"
+    intentos += 1
+    reproducir_musica_aleatoria()
+    _init_tutorial_hint()
+    # Ajustes de práctica
+    if practice_phase == 2:
+        try:
+            enemy._enter_phase2()
+        except Exception:
+            enemy.phase = 2
+            enemy.hp = 120
+    elif practice_phase == 3:
+        try:
+            enemy._activar_fase3()
+        except Exception:
+            enemy.phase = 3
+            enemy.hp = 70
+            enemy.difficulty = max(getattr(enemy, 'difficulty', 1.0), 1.6)
+
+# ---------------------------------------------------------
 running = True
 titulo_troyano_timer = 0
 titulo_font = pygame.font.Font(None, 80)
+
+# Dificultad por defecto (Senior = normal)
+difficulty_label = "Senior"
+difficulty_factor = 1.0
+
+# Iniciar música de menú al arrancar
+play_menu_music_if_needed()
 
 while running:
     clock.tick(c.FPS)
@@ -143,6 +240,26 @@ while running:
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
+        # ESC: en batalla vuelve al menú; en otras pantallas sale del juego
+        if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+            if modo_juego == "batalla":
+                try:
+                    pygame.mixer.music.stop()
+                except Exception:
+                    pass
+                bullets.empty()
+                all_sprites.empty()
+                enemy = None
+                combate = None
+                modo_juego = "menu"
+                # Volver a música de menú
+                try:
+                    current_music_tag = None
+                except Exception:
+                    pass
+                play_menu_music_if_needed()
+            else:
+                running = False
 
         # Botón de debug
         if event.type == pygame.KEYDOWN and event.key == pygame.K_F1:
@@ -161,15 +278,78 @@ while running:
                 enemy.attack_timer = 120
                 print("⚡ Forzando ataque: attack_rain")
 
-        # Iniciar batalla
+        # Nuevo flujo de pantallas
+        if modo_juego == "menu":
+            main_menu.handle_event(event)
+            if main_menu.next_state:
+                if main_menu.next_state == "play_select":
+                    playselect = play_select.PlaySelect()
+                    modo_juego = "play_select"
+                    play_menu_music_if_needed()
+                elif main_menu.next_state == "practice":
+                    practicemenu = practice_screen.PracticeMenu()
+                    modo_juego = "practice"
+                    play_menu_music_if_needed()
+                elif main_menu.next_state == "options":
+                    optsmenu = options_screen.OptionsMenu(fullscreen, music_volume)
+                    optsmenu.apply_fullscreen_cb = apply_fullscreen
+                    optsmenu.apply_volume_cb = apply_music_volume
+                    modo_juego = "options"
+                    play_menu_music_if_needed()
+                elif main_menu.next_state == "credits":
+                    creditss = credits_screen.CreditsScreen()
+                    modo_juego = "credits"
+                    play_menu_music_if_needed()
+                main_menu.next_state = None
+
+        elif modo_juego == "play_select":
+            playselect.handle_event(event)
+            if playselect.selected_difficulty:
+                if playselect.selected_difficulty == "junior":
+                    difficulty_label = "Junior"; difficulty_factor = 0.75
+                    modo_juego = "intro"
+                elif playselect.selected_difficulty == "senior":
+                    difficulty_label = "Senior"; difficulty_factor = 1.0
+                    modo_juego = "intro"
+                else:  # back
+                    modo_juego = "menu"
+                # Si pasamos a intro, detener música de menú
+                if modo_juego == "intro":
+                    try:
+                        pygame.mixer.music.stop()
+                    except Exception:
+                        pass
+                    current_music_tag = None
+                else:
+                    play_menu_music_if_needed()
+                playselect = None
+
+        elif modo_juego == "practice":
+            practicemenu.handle_event(event)
+            if practicemenu.selected_phase is not None:
+                if practicemenu.selected_phase in (1, 2, 3):
+                    start_battle(practicemenu.selected_phase)
+                else:  # back
+                    modo_juego = "menu"
+                practicemenu = None
+                if modo_juego == "menu":
+                    play_menu_music_if_needed()
+
+        elif modo_juego == "options":
+            result = optsmenu.handle_event(event)
+            if result == "back":
+                modo_juego = "menu"; optsmenu = None
+                play_menu_music_if_needed()
+
+        elif modo_juego == "credits":
+            result = creditss.handle_event(event)
+            if result == "back":
+                modo_juego = "menu"; creditss = None
+                play_menu_music_if_needed()
+
+        # Iniciar batalla desde la pantalla "introducción" original
         if event.type == pygame.KEYDOWN and modo_juego == "intro" and event.key == pygame.K_x:
-            modo_juego = "batalla"
-            enemy = boss.Boss(bullets, all_sprites)
-            all_sprites.add(enemy)
-            combate = combat.CombatSystem()
-            intentos += 1
-            reproducir_musica_aleatoria()
-            _init_tutorial_hint()
+            start_battle()
 
 
     # -----------------------------------------------------
@@ -190,12 +370,29 @@ while running:
         if enemy and hasattr(enemy, "draw_phase3_background"):
             enemy.draw_phase3_background(screen)
     else:
-        screen.fill((54, 0, 0))
+        # Fondo por defecto para pantallas que no son batalla
+        screen.fill((30, 20, 30))
 
     # --- Intro ---
-    if modo_juego == "intro":
+    if modo_juego == "menu":
+        main_menu.update(); main_menu.draw(screen)
+
+    elif modo_juego == "play_select":
+        playselect.update(); playselect.draw(screen)
+
+    elif modo_juego == "practice":
+        practicemenu.update(); practicemenu.draw(screen)
+
+    elif modo_juego == "options":
+        optsmenu.update(); optsmenu.draw(screen)
+
+    elif modo_juego == "credits":
+        creditss.update(); creditss.draw(screen)
+
+    elif modo_juego == "intro":
         mostrar_texto("Tu computadora tiene un VIRUS...", c.ROJO, c.ALTO // 2 - 50)
-        mostrar_texto("Presiona [X] para enfrentarlo", c.BLANCO, c.ALTO // 2 + 20)
+        mostrar_texto(f"Dificultad: {difficulty_label}", (220,220,220), c.ALTO // 2 - 10)
+        mostrar_texto("Presiona [X] para enfrentarlo", c.BLANCO, c.ALTO // 2 + 40)
 
     # --- Batalla ---
     elif modo_juego == "batalla":
@@ -308,8 +505,8 @@ while running:
         screen.blit(titulo, titulo.get_rect(center=(c.ANCHO//2, c.ALTO//2 - 20)))
         screen.blit(subt,   subt.get_rect(center=(c.ANCHO//2, c.ALTO//2 + 30)))
 
-    # --- Contador de intentos ---
-    if intentos > 0:
+    # --- Contador de intentos (solo durante la batalla) ---
+    if modo_juego == "batalla" and intentos > 0:
         font_small = pygame.font.Font(None, 22)
         text = f"Intentos: {intentos}"
         txt_surface = font_small.render(text, True, (220, 220, 220))

@@ -46,13 +46,30 @@ class Boss(pygame.sprite.Sprite):
         except:
             img1 = pygame.Surface((200, 200), pygame.SRCALPHA); img1.fill((220,220,220,255))
         self.image = pygame.transform.scale(img1, (200, 200))
-        # Posición inicial SIEMPRE sobre el border
         self.rect = self.image.get_rect()
-        try:
-            margin = 12
-            self.rect.midbottom = (c.ANCHO // 2, c.BOX_Y - margin)
-        except Exception:
-            self.rect.center = (c.ANCHO // 2, 120)
+
+        # --- POSICIÓN MANUAL ABSOLUTA (x, y como centro) ---
+        # Si no querés anchors, editá estos valores y listo.
+        # Si algún valor está en None, calculamos un default igual a "encima del border" (margin=12) según el tamaño actual del sprite.
+        self.pos_mode = "absolute"  # "absolute" usa pos_abs; "anchor" usa self.positioning
+        self.pos_abs = {
+            1: (c.ANCHO // 2, (c.BOX_Y - 12) - self.rect.height // 2),  # default: igual que antes, pero como centro
+            2: (c.ANCHO // 2, (c.BOX_Y - 12) - self.rect.height // 2),
+            3: (c.ANCHO // 2, (c.BOX_Y - 12) - self.rect.height // 2),
+            "defeated": (400, 160),
+        }
+
+        # --- Posicionamiento manual por fase ---
+        # Cambia estas posiciones a gusto. Anchor puede ser: "midbottom", "center" o "topleft".
+        self.positioning = {
+            1: {"anchor": "midbottom", "pos": (c.ANCHO // 2, c.BOX_Y - 12)},
+            2: {"anchor": "midbottom", "pos": (c.ANCHO // 2, c.BOX_Y - 12)},
+            3: {"anchor": "midbottom", "pos": (c.ANCHO // 2, c.BOX_Y - 12)},
+            "defeated": {"anchor": "midbottom", "pos": (c.ANCHO // 2, c.BOX_Y - 12)},
+        }
+
+        # Aplicar posición para fase 1
+        self.apply_position(1)
 
         try:
             img2 = pygame.image.load("Juego/assets/sprites/Boss_Virus_2.png").convert_alpha()
@@ -89,7 +106,41 @@ class Boss(pygame.sprite.Sprite):
         self.original_x = self.rect.centerx  # Posición original para movimiento
         self.phase3_colors = [(255,128,0), (255,0,0), (255,255,0)]  # Colores estilo Asgore
         self.particles = []
-        self.move_amplitude = 100  # Qué tanto se mueve a los lados
+        self.move_amplitude = 0  # Desactivar movimiento lateral por defecto
+
+    def apply_position(self, key):
+        # Modo absoluto: usa coordenadas exactas (centro)
+        if getattr(self, "pos_mode", "anchor") == "absolute":
+            pos = self.pos_abs.get(key)
+            if pos is None:
+                # Fallback: reproducir la posición clásica de estar justo encima del border con margin=12
+                cx = c.ANCHO // 2
+                cy = (c.BOX_Y - 12) - self.rect.height // 2
+                pos = (cx, cy)
+            self.rect.center = (int(pos[0]), int(pos[1]))
+            return
+
+        # Modo anchor (alternativa)
+        cfg = self.positioning.get(key)
+        if not cfg:
+            return
+        anchor = cfg.get("anchor", "midbottom")
+        x, y = cfg.get("pos", (c.ANCHO // 2, c.BOX_Y - 12))
+        if anchor == "center":
+            self.rect.center = (x, y)
+        elif anchor == "topleft":
+            self.rect.topleft = (x, y)
+        else:  # midbottom por defecto
+            self.rect.midbottom = (x, y)
+
+    def set_pos(self, phase_key, x, y):
+        """Define posición absoluta (centro) para una fase y la aplica si corresponde."""
+        if not hasattr(self, "pos_abs"):
+            self.pos_abs = {}
+        self.pos_abs[phase_key] = (int(x), int(y))
+        # Si es la fase actual (o defeated activo), aplicar inmediatamente
+        if (phase_key == self.phase) or (phase_key == "defeated" and getattr(self, "_muerte_final", False)):
+            self.rect.center = (int(x), int(y))
 
     def update(self):
         """Actualiza el estado del jefe."""
@@ -225,13 +276,9 @@ class Boss(pygame.sprite.Sprite):
                 # Cambiar sprite y detener música
                 self.image = pygame.image.load("Juego/assets/Sprites/boss_derrotado.png").convert_alpha()
                 self.image = pygame.transform.scale(self.image, (300, 300))
-                # Anclar igual que las otras fases (midbottom con margin=12)
                 self.rect = self.image.get_rect()
-                try:
-                    margin = 12
-                    self.rect.midbottom = (c.ANCHO // 2, c.BOX_Y - margin)
-                except Exception:
-                    self.rect.center = (c.ANCHO // 2, 140)
+                # Aplicar posicionamiento manual para 'defeated'
+                self.apply_position("defeated")
                 
                 # Detener música actual y reproducir silencio
                 pygame.mixer.music.stop()
@@ -294,12 +341,8 @@ class Boss(pygame.sprite.Sprite):
             surf.fill((180, 60, 60, 255))
             self.image = surf
         self.rect = self.image.get_rect(center=center)
-        # Posicionar IGUAL que fase 1 (margin=12)
-        try:
-            margin = 12  # Mismo que fase 1
-            self.rect.midbottom = (c.ANCHO // 2, c.BOX_Y - margin)
-        except Exception:
-            self.rect.center = (c.ANCHO // 2, 120)
+        # Posicionar según configuración manual para fase 2
+        self.apply_position(2)
         # Reanclar posición base horizontal para movimiento lateral en fase 2
         self.original_x = self.rect.centerx
         
@@ -523,14 +566,9 @@ class Boss(pygame.sprite.Sprite):
             img = pygame.image.load("Juego/assets/Sprites/Boss_Virus_3.png").convert_alpha()
             self.image = pygame.transform.scale(img, (233, 350))
             self.rect = self.image.get_rect()
-            # Posicionar IGUAL que fase 1 (margin=12)
-            try:
-                margin = 12  # Mismo que fases 1 y 2
-                self.rect.midbottom = (c.ANCHO // 2, c.BOX_Y - margin)
-                self.original_x = self.rect.centerx
-            except Exception:
-                self.rect.center = (c.ANCHO // 2, 120)
-                self.original_x = self.rect.centerx
+            # Posicionar según configuración manual para fase 3
+            self.apply_position(3)
+            self.original_x = self.rect.centerx
             
             # 4. Cambiar música
             pygame.mixer.music.stop()
@@ -623,7 +661,9 @@ class Boss(pygame.sprite.Sprite):
             try:
                 img = pygame.image.load("Juego/assets/Sprites/boss_derrotado.png").convert_alpha()
                 self.image = pygame.transform.scale(img, (300, 300))
-                self.rect = self.image.get_rect(center=(c.ANCHO // 2, 140))
+                self.rect = self.image.get_rect()
+                # Usar posicionamiento manual (absolute/anchor según configuración)
+                self.apply_position("defeated")
             except:
                 # Si no hay sprite de muerte, oscurecer el actual
                 self.image.fill((40, 40, 40, 255), special_flags=pygame.BLEND_RGBA_MULT)
