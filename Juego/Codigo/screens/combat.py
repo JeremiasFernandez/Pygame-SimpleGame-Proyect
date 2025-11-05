@@ -8,7 +8,10 @@ class AttackEffect(pygame.sprite.Sprite):
         super().__init__()
         self.frames = []
         slash_path = os.path.join("Juego", "assets", "Sprites", "slash.gif")
-        self.load_frames(slash_path)
+        self.load_frames_from_gif(slash_path)
+        if not self.frames:
+            # Fallback si no se pudo cargar el GIF
+            self.frames = [self._create_fallback_frame()]
         self.current_frame = 0
         self.image = self.frames[self.current_frame]
         self.rect = self.image.get_rect(center=enemy_rect.center)
@@ -16,13 +19,38 @@ class AttackEffect(pygame.sprite.Sprite):
         self.frame_duration = 6
         self.finished = False
 
-    def load_frames(self, path):
-        gif = pygame.image.load(path).convert_alpha()
-        width = gif.get_width() // 6
-        height = gif.get_height()
-        for i in range(6):
-            frame = gif.subsurface((i * width, 0, width, height))
-            self.frames.append(pygame.transform.scale(frame, (200, 200)))
+    def load_frames_from_gif(self, path):
+        """Carga frames de un GIF animado usando Pillow."""
+        try:
+            from PIL import Image
+            gif = Image.open(path)
+            try:
+                while True:
+                    frame = gif.convert("RGBA")
+                    # Escalar a 200x200
+                    frame = frame.resize((40, 200), Image.Resampling.LANCZOS)
+                    # Convertir PIL a Pygame
+                    mode = frame.mode
+                    size = frame.size
+                    data = frame.tobytes()
+                    py_img = pygame.image.fromstring(data, size, mode)
+                    self.frames.append(py_img)
+                    gif.seek(gif.tell() + 1)
+            except EOFError:
+                pass
+            print(f"⚔️ Slash GIF cargado: {len(self.frames)} frames")
+        except ImportError:
+            print("⚠️ PIL/Pillow no disponible para slash.gif, usando fallback")
+        except Exception as e:
+            print(f"⚠️ Error cargando slash.gif: {e}, usando fallback")
+
+    def _create_fallback_frame(self):
+        """Crea un frame de respaldo si el GIF no se pudo cargar."""
+        surf = pygame.Surface((200, 200), pygame.SRCALPHA)
+        # Dibujar una X simple
+        pygame.draw.line(surf, (255, 100, 100), (40, 40), (160, 160), 8)
+        pygame.draw.line(surf, (255, 100, 100), (160, 40), (40, 160), 8)
+        return surf
 
     def update(self):
         self.timer += 1

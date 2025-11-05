@@ -19,6 +19,7 @@ def game_over_screen(screen, clock):
     alpha_fondo = 0
     y_text = c.ALTO // 2 - 200  # empieza arriba
     y_final = c.ALTO // 2 - 40
+    return_to_menu = False
 
     while esperando:
         for event in pygame.event.get():
@@ -28,7 +29,8 @@ def game_over_screen(screen, clock):
                 if event.key == pygame.K_SPACE:
                     esperando = False
                 elif event.key == pygame.K_ESCAPE:
-                    pygame.quit(); sys.exit()
+                    return_to_menu = True
+                    esperando = False
 
         # --- fondo oscuro progresivo ---
         screen.fill((0, 0, 20))
@@ -78,3 +80,5 @@ def game_over_screen(screen, clock):
         sad.stop()
     except Exception:
         pass
+    
+    return return_to_menu

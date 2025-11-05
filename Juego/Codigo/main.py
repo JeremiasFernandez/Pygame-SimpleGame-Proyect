@@ -53,6 +53,85 @@ tutorial_hint_img = None
 tutorial_hint_total = 10 * c.FPS  # ~10 segundos
 tutorial_hint_ticks = 0
 
+# --- Star GIF handling ---
+star_frames = []
+star_frame_index = 0
+star_frame_timer = 0
+star_frame_delay = 5  # Frames entre cada cambio de imagen del GIF
+
+def _load_star_gif():
+    """Carga el GIF de la estrella y extrae sus frames."""
+    global star_frames
+    if star_frames:
+        return
+    try:
+        from PIL import Image
+        gif_path = os.path.join("Juego", "assets", "Sprites", "star.gif")
+        gif = Image.open(gif_path)
+        frames = []
+        try:
+            while True:
+                # Convertir frame a RGBA
+                frame = gif.convert("RGBA")
+                # Escalar a 40x40
+                frame = frame.resize((60, 60), Image.Resampling.LANCZOS)
+                # Convertir PIL a Pygame surface
+                mode = frame.mode
+                size = frame.size
+                data = frame.tobytes()
+                py_img = pygame.image.fromstring(data, size, mode)
+                frames.append(py_img)
+                gif.seek(gif.tell() + 1)
+        except EOFError:
+            pass
+        star_frames = frames
+        print(f"⭐ Star GIF cargado: {len(frames)} frames")
+    except ImportError:
+        print("⚠️ PIL/Pillow no disponible, usando PNG estático")
+        _load_star_png()
+    except Exception as e:
+        print(f"⚠️ No se pudo cargar star.gif: {e}, usando PNG estático")
+        _load_star_png()
+
+def _load_star_png():
+    """Fallback: carga star.png como único frame."""
+    global star_frames
+    try:
+        png_path = os.path.join("Juego", "assets", "Sprites", "star.png")
+        img = pygame.image.load(png_path).convert_alpha()
+        img = pygame.transform.smoothscale(img, (40, 40))
+        star_frames = [img]
+        print("⭐ Star PNG cargado como fallback")
+    except Exception as e:
+        print(f"⚠️ No se pudo cargar star.png: {e}")
+        star_frames = []
+
+def _draw_stars(screen):
+    """Dibuja las estrellas animadas en el menú."""
+    global star_frame_index, star_frame_timer
+    if not (stars_junior or stars_senior):
+        return
+    if not star_frames:
+        _load_star_gif()
+    if not star_frames:
+        return
+    
+    # Animar frame
+    star_frame_timer += 1
+    if star_frame_timer >= star_frame_delay:
+        star_frame_timer = 0
+        star_frame_index = (star_frame_index + 1) % len(star_frames)
+    
+    current_frame = star_frames[star_frame_index]
+    base_x = c.ANCHO // 2 - 50
+    # Posicionar por encima del título del menú (título centrado en y≈120)
+    base_y = 30
+    
+    if stars_junior:
+        screen.blit(current_frame, (base_x, base_y))
+    if stars_senior:
+        screen.blit(current_frame, (base_x + 60, base_y))
+
 def _init_tutorial_hint():
     global tutorial_hint_img, tutorial_hint_ticks
     tutorial_hint_ticks = tutorial_hint_total
@@ -138,18 +217,29 @@ def reproducir_musica_aleatoria():
 def play_menu_music_if_needed():
     """Reproduce el tema del menú si no está ya sonando."""
     global current_music_tag
-    if current_music_tag == "menu":
+    # Determinar qué música debería estar sonando
+    if stars_junior and stars_senior:
+        target_tag = "menu_complete"
+        ruta = "Juego/assets/Soundtrack/menu_theme_complete.mp3"
+        msg = "🎵 Música de menú COMPLETA: menu_theme_complete.mp3"
+    else:
+        target_tag = "menu"
+        ruta = "Juego/assets/Soundtrack/menu_theme.mp3"
+        msg = "🎵 Música de menú reproduciendo: menu_theme.mp3"
+    
+    # Si ya está sonando la correcta, no hacer nada
+    if current_music_tag == target_tag:
         return
+    
     try:
         pygame.mixer.music.stop()
-        ruta = "Juego/assets/Soundtrack/menu_theme.mp3"
         pygame.mixer.music.load(ruta)
         pygame.mixer.music.set_volume(music_volume)
         pygame.mixer.music.play(-1)
-        current_music_tag = "menu"
-        print("🎵 Música de menú reproduciendo: menu_theme.mp3")
+        current_music_tag = target_tag
+        print(msg)
     except Exception as e:
-        print(f"⚠️ No se pudo reproducir menu_theme.mp3: {e}")
+        print(f"⚠️ No se pudo reproducir música de menú: {e}")
 
 # ---------------------------------------------------------
 def reset_game():
@@ -194,7 +284,7 @@ def start_battle(practice_phase: int | None = None):
     """Inicia la batalla desde el menú o práctica.
     practice_phase: 1,2,3 para saltar directo a esa fase.
     """
-    global bullets, all_sprites, player, enemy, modo_juego, combate, intentos
+    global bullets, all_sprites, player, enemy, modo_juego, combate, intentos, is_practice_mode
     bullets.empty(); all_sprites.empty()
     player = p.Player(); all_sprites.add(player)
     enemy = boss.Boss(bullets, all_sprites); all_sprites.add(enemy)
@@ -207,6 +297,8 @@ def start_battle(practice_phase: int | None = None):
     intentos += 1
     reproducir_musica_aleatoria()
     _init_tutorial_hint()
+    # Marcar si es modo práctica
+    is_practice_mode = (practice_phase is not None)
     # Ajustes de práctica
     if practice_phase == 2:
         try:
@@ -231,6 +323,11 @@ titulo_font = pygame.font.Font(None, 80)
 difficulty_label = "Senior"
 difficulty_factor = 1.0
 
+# Estrellas de victoria (persistentes entre partidas)
+stars_junior = False
+stars_senior = False
+is_practice_mode = False  # Para no dar estrellas en práctica
+
 # Iniciar música de menú al arrancar
 play_menu_music_if_needed()
 
@@ -240,9 +337,13 @@ while running:
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
-        # ESC: en batalla vuelve al menú; en otras pantallas sale del juego
+        # ESC: vuelve al menú desde cualquier pantalla EXCEPTO cuando ya estás en el menú (ahí sale del juego)
         if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
-            if modo_juego == "batalla":
+            if modo_juego == "menu":
+                # Si estás en el menú, ESC cierra el juego
+                running = False
+            elif modo_juego == "batalla":
+                # Desde batalla, limpiar y volver al menú
                 try:
                     pygame.mixer.music.stop()
                 except Exception:
@@ -252,14 +353,27 @@ while running:
                 enemy = None
                 combate = None
                 modo_juego = "menu"
-                # Volver a música de menú
                 try:
                     current_music_tag = None
                 except Exception:
                     pass
                 play_menu_music_if_needed()
-            else:
-                running = False
+            elif modo_juego == "victoria":
+                # Desde victoria, volver al menú
+                modo_juego = "menu"
+                try:
+                    current_music_tag = None
+                except Exception:
+                    pass
+                play_menu_music_if_needed()
+            elif modo_juego in ("intro", "play_select", "practice", "options", "credits"):
+                # Desde cualquier otra pantalla, volver al menú
+                modo_juego = "menu"
+                playselect = None
+                practicemenu = None
+                optsmenu = None
+                creditss = None
+                play_menu_music_if_needed()
 
         # Botón de debug
         if event.type == pygame.KEYDOWN and event.key == pygame.K_F1:
@@ -308,9 +422,11 @@ while running:
                 if playselect.selected_difficulty == "junior":
                     difficulty_label = "Junior"; difficulty_factor = 0.75
                     modo_juego = "intro"
+                    is_practice_mode = False  # No es práctica
                 elif playselect.selected_difficulty == "senior":
                     difficulty_label = "Senior"; difficulty_factor = 1.0
                     modo_juego = "intro"
+                    is_practice_mode = False  # No es práctica
                 else:  # back
                     modo_juego = "menu"
                 # Si pasamos a intro, detener música de menú
@@ -349,6 +465,7 @@ while running:
 
         # Iniciar batalla desde la pantalla "introducción" original
         if event.type == pygame.KEYDOWN and modo_juego == "intro" and event.key == pygame.K_x:
+            is_practice_mode = False  # Modo historia normal
             start_battle()
 
 
@@ -375,7 +492,10 @@ while running:
 
     # --- Intro ---
     if modo_juego == "menu":
-        main_menu.update(); main_menu.draw(screen)
+        main_menu.update()
+        main_menu.draw(screen)
+        # Dibujar estrellas animadas debajo del título
+        _draw_stars(screen)
 
     elif modo_juego == "play_select":
         playselect.update(); playselect.draw(screen)
@@ -495,8 +615,23 @@ while running:
                     pygame.mixer.music.play(0)
                 except Exception as e:
                     print("Error al reproducir GameOver:", e)
-                gameover.game_over_screen(screen, clock)
-                reset_game()
+                go_to_menu = gameover.game_over_screen(screen, clock)
+                if go_to_menu:
+                    # Volver al menú principal
+                    bullets.empty()
+                    all_sprites.empty()
+                    enemy = None
+                    combate = None
+                    modo_juego = "menu"
+                    intentos += 1
+                    try:
+                        current_music_tag = None
+                    except Exception:
+                        pass
+                    play_menu_music_if_needed()
+                else:
+                    # Reintentar (Space)
+                    reset_game()
 
     elif modo_juego == "victoria":
         screen.fill((10, 10, 20))
@@ -504,6 +639,21 @@ while running:
         subt  = pygame.font.Font(None, 36).render("(Pantalla final en construcción)", True, (220, 220, 220))
         screen.blit(titulo, titulo.get_rect(center=(c.ANCHO//2, c.ALTO//2 - 20)))
         screen.blit(subt,   subt.get_rect(center=(c.ANCHO//2, c.ALTO//2 + 30)))
+        
+        # Otorgar estrella si no es modo práctica
+        if not is_practice_mode:
+            if difficulty_label == "Junior" and not stars_junior:
+                stars_junior = True
+                print("⭐ ¡Estrella Junior desbloqueada!")
+            elif difficulty_label == "Senior" and not stars_senior:
+                stars_senior = True
+                print("⭐ ¡Estrella Senior desbloqueada!")
+            # Actualizar música si ahora tiene ambas
+            if stars_junior and stars_senior:
+                try:
+                    current_music_tag = None
+                except Exception:
+                    pass
 
     # --- Contador de intentos (solo durante la batalla) ---
     if modo_juego == "batalla" and intentos > 0:

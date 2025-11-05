@@ -70,7 +70,7 @@ class MainMenu:
             screen.blit(surf, rect)
 
         # Etiqueta de versión (abajo a la derecha, semitransparente)
-        ver_text = "v0.6 (Pre-alpha)"
+        ver_text = "v0.6.2 (Pre-alpha)"
         ver_surf = self.version_font.render(ver_text, True, (220, 220, 230))
         ver_surf.set_alpha(140)
         vx = c.ANCHO - ver_surf.get_width() - 12
