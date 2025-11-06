@@ -8,6 +8,8 @@ class CreditsScreen:
         self.text = text or "Creado por: Jeremias Fernandez, 2025.\n\nAgradecimientos especiales a:\n- La UTN.\n- Mi primo bauti.\n\n¡Gracias por jugar!"
         self.title_font = pygame.font.Font(None, 60)
         self.text_font = pygame.font.Font(None, 28)
+        # Cooldown de entrada para que la misma tecla que entra no salga inmediatamente
+        self.entry_cooldown = 10  # ~0.16s a 60 FPS
         # Sonidos
         self.sfx_select = None
         try:
@@ -18,12 +20,15 @@ class CreditsScreen:
             self.sfx_select = None
 
     def handle_event(self, event):
+        if self.entry_cooldown > 0:
+            return None
         if event.type == pygame.KEYDOWN and event.key in (pygame.K_ESCAPE, pygame.K_RETURN, pygame.K_x):
             if self.sfx_select: self.sfx_select.play()
             return "back"
 
     def update(self):
-        pass
+        if self.entry_cooldown > 0:
+            self.entry_cooldown -= 1
 
     def draw(self, screen):
         screen.fill((12, 12, 14))

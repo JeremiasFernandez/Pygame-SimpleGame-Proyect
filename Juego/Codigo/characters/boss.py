@@ -21,7 +21,7 @@ if __name__ == "__main__":
     except Exception:
         pass
 class Boss(pygame.sprite.Sprite):
-    def __init__(self, bullets_group, all_sprites):
+    def __init__(self, bullets_group, all_sprites, music_volume=0.5):
         super().__init__()
         # Inicialización de grupos
         self.bullets_group = bullets_group
@@ -35,6 +35,7 @@ class Boss(pygame.sprite.Sprite):
         self.hp = 200
         self.phase = 1
         self.difficulty = 1.0
+        self.music_volume = music_volume  # Store music volume for phase transitions
         self.current_attack = None
         self._first_attack_forced = False
         self.music_playing = False
@@ -48,10 +49,10 @@ class Boss(pygame.sprite.Sprite):
         self.image = pygame.transform.scale(img1, (200, 200))
         self.rect = self.image.get_rect()
 
-        # --- POSICIÓN MANUAL ABSOLUTA (x, y como centro) ---
-        # Si no querés anchors, editá estos valores y listo.
-        # Si algún valor está en None, calculamos un default igual a "encima del border" (margin=12) según el tamaño actual del sprite.
-        self.pos_mode = "absolute"  # "absolute" usa pos_abs; "anchor" usa self.positioning
+        # --- POSICIONAMIENTO ---
+        # Usar modo 'anchor' para que el jefe SIEMPRE quede estático en la misma posición
+        # sin depender del tamaño del sprite ni animaciones.
+        self.pos_mode = "anchor"  # "absolute" usa pos_abs; "anchor" usa self.positioning
         self.pos_abs = {
             1: (c.ANCHO // 2, (c.BOX_Y - 12) - self.rect.height // 2),  # default: igual que antes, pero como centro
             2: (c.ANCHO // 2, (c.BOX_Y - 12) - self.rect.height // 2),
@@ -68,7 +69,7 @@ class Boss(pygame.sprite.Sprite):
             "defeated": {"anchor": "midbottom", "pos": (c.ANCHO // 2, c.BOX_Y - 12)},
         }
 
-        # Aplicar posición para fase 1
+        # Aplicar posición para fase 1 (anchor midbottom, siempre igual)
         self.apply_position(1)
 
         try:
@@ -144,6 +145,17 @@ class Boss(pygame.sprite.Sprite):
 
     def update(self):
         """Actualiza el estado del jefe."""
+        # Asegurar SIEMPRE la misma posición del jefe sin importar el modo de entrada
+        # Re-ancla cada frame usando el esquema 'anchor' para la fase actual (o estado derrotado)
+        try:
+            if getattr(self, "_muerte_final", False):
+                self.apply_position("defeated")
+            else:
+                self.apply_position(self.phase)
+        except Exception:
+            # Ante cualquier inconveniente, no interrumpir el update
+            pass
+
         # Si ya murió definitivamente, esperar unos segundos y marcar victoria
         if getattr(self, "_muerte_final", False):
             # Inicializar temporizador de victoria si no existe
@@ -573,7 +585,7 @@ class Boss(pygame.sprite.Sprite):
             # 4. Cambiar música
             pygame.mixer.music.stop()
             pygame.mixer.music.load("Juego/assets/Soundtrack/phase3.mp3")
-            pygame.mixer.music.set_volume(0.6)
+            pygame.mixer.music.set_volume(self.music_volume)
             pygame.mixer.music.play(-1)
 
             # Iniciar el fadeout del destello
@@ -629,7 +641,7 @@ class Boss(pygame.sprite.Sprite):
             if not self.phase2_music_started:
                 try:
                     pygame.mixer.music.load("Juego/assets/Soundtrack/phase2.mp3")
-                    pygame.mixer.music.set_volume(0.4)
+                    pygame.mixer.music.set_volume(self.music_volume)
                     pygame.mixer.music.play(-1)
                     self.phase2_music_started = True
                     print("🎵 Música de fase 2 iniciada")

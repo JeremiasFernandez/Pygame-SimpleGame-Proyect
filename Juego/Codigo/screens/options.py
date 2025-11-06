@@ -7,7 +7,7 @@ class OptionsMenu:
     def __init__(self, fullscreen=False, volume=0.5):
         self.fullscreen = fullscreen
         self.volume = float(max(0.0, min(1.0, volume)))
-        self.options = ["Modo de pantalla", "Volumen música", "Volver"]
+        self.options = ["Epic Sound", "Modo de pantalla", "Volumen música", "Volver"]
         self.index = 0
         self.title_font = pygame.font.Font(None, 60)
         self.opt_font = pygame.font.Font(None, 40)
@@ -18,6 +18,7 @@ class OptionsMenu:
         # Sonidos
         self.sfx_move = None
         self.sfx_select = None
+        self.sfx_epic = None
         try:
             move_path = os.path.join("Juego", "assets", "Sounds", "menu_move.wav")
             self.sfx_move = pygame.mixer.Sound(move_path)
@@ -30,6 +31,13 @@ class OptionsMenu:
             self.sfx_select.set_volume(0.1)
         except Exception:
             self.sfx_select = None
+        try:
+            epic_path = os.path.join("Juego", "assets", "Sounds", "epic.wav")
+            self.sfx_epic = pygame.mixer.Sound(epic_path)
+            self.sfx_epic.set_volume(0.8)
+        except Exception:
+            # Si no existe epic.wav, usar menu_select como placeholder
+            self.sfx_epic = self.sfx_select
 
     def handle_event(self, event):
         if event.type == pygame.KEYDOWN:
@@ -40,24 +48,27 @@ class OptionsMenu:
                 self.index = (self.index + 1) % len(self.options)
                 if self.sfx_move: self.sfx_move.play()
             elif event.key in (pygame.K_LEFT, pygame.K_a):
-                if self.index == 1:  # volumen
+                if self.index == 2:  # volumen (era índice 1, ahora 2)
                     self.volume = max(0.0, round(self.volume - 0.05, 2))
                     if self.apply_volume_cb:
                         self.apply_volume_cb(self.volume)
                     if self.sfx_move: self.sfx_move.play()
             elif event.key in (pygame.K_RIGHT, pygame.K_d):
-                if self.index == 1:  # volumen
+                if self.index == 2:  # volumen
                     self.volume = min(1.0, round(self.volume + 0.05, 2))
                     if self.apply_volume_cb:
                         self.apply_volume_cb(self.volume)
                     if self.sfx_move: self.sfx_move.play()
             elif event.key in (pygame.K_RETURN, pygame.K_SPACE, pygame.K_x):
-                if self.index == 0:  # toggle fullscreen
+                if self.index == 0:  # Epic Sound
+                    if self.sfx_epic:
+                        self.sfx_epic.play()
+                elif self.index == 1:  # toggle fullscreen (era 0, ahora 1)
                     self.fullscreen = not self.fullscreen
                     if self.apply_fullscreen_cb:
                         self.apply_fullscreen_cb(self.fullscreen)
                     if self.sfx_select: self.sfx_select.play()
-                elif self.index == 2:  # Volver
+                elif self.index == 3:  # Volver (era 2, ahora 3)
                     if self.sfx_select: self.sfx_select.play()
                     return "back"
 
@@ -69,25 +80,35 @@ class OptionsMenu:
         title = self.title_font.render("Opciones", True, (255, 230, 120))
         screen.blit(title, title.get_rect(center=(c.ANCHO // 2, 90)))
 
-        # Modo de pantalla
-        mode_text = "Pantalla completa" if self.fullscreen else "Modo ventana"
-        txt0 = self.opt_font.render(f"Modo de pantalla: {mode_text}", True, (230, 230, 230))
-        r0 = txt0.get_rect(center=(c.ANCHO // 2, 220))
+        base_y = 180
+        gap = 70
+
+        # 0: Epic Sound
+        txt0 = self.opt_font.render("Epic Sound", True, (255 if self.index == 0 else 230, 230, 230))
+        r0 = txt0.get_rect(center=(c.ANCHO // 2, base_y))
         if self.index == 0:
-            screen.blit(self.small.render("[Enter] para alternar", True, (255, 230, 120)), (r0.left, r0.bottom + 6))
+            screen.blit(self.small.render("[Enter] para reproducir", True, (255, 230, 120)), (r0.left, r0.bottom + 6))
         screen.blit(txt0, r0)
 
-        # Volumen música
-        txt1 = self.opt_font.render(f"Volumen música: {int(self.volume*100)}%", True, (230, 230, 230))
-        r1 = txt1.get_rect(center=(c.ANCHO // 2, 300))
+        # 1: Modo de pantalla
+        mode_text = "Pantalla completa" if self.fullscreen else "Modo ventana"
+        txt1 = self.opt_font.render(f"Modo de pantalla: {mode_text}", True, (255 if self.index == 1 else 230, 230, 230))
+        r1 = txt1.get_rect(center=(c.ANCHO // 2, base_y + gap))
         if self.index == 1:
-            hint = self.small.render("[←/→] ajusta el volumen", True, (255, 230, 120))
-            screen.blit(hint, (r1.left, r1.bottom + 6))
+            screen.blit(self.small.render("[Enter] para alternar", True, (255, 230, 120)), (r1.left, r1.bottom + 6))
         screen.blit(txt1, r1)
 
-        # Volver
-        txt2 = self.opt_font.render("Volver", True, (230 if self.index != 2 else 255, 230 if self.index != 2 else 255, 230))
-        r2 = txt2.get_rect(center=(c.ANCHO // 2, 380))
+        # 2: Volumen música
+        txt2 = self.opt_font.render(f"Volumen música: {int(self.volume*100)}%", True, (255 if self.index == 2 else 230, 230, 230))
+        r2 = txt2.get_rect(center=(c.ANCHO // 2, base_y + gap*2))
         if self.index == 2:
-            screen.blit(self.small.render("[Enter] para volver", True, (255, 230, 120)), (r2.left, r2.bottom + 6))
+            hint = self.small.render("[←/→] ajusta el volumen", True, (255, 230, 120))
+            screen.blit(hint, (r2.left, r2.bottom + 6))
         screen.blit(txt2, r2)
+
+        # 3: Volver
+        txt3 = self.opt_font.render("Volver", True, (255 if self.index == 3 else 230, 230, 230))
+        r3 = txt3.get_rect(center=(c.ANCHO // 2, base_y + gap*3))
+        if self.index == 3:
+            screen.blit(self.small.render("[Enter] para volver", True, (255, 230, 120)), (r3.left, r3.bottom + 6))
+        screen.blit(txt3, r3)

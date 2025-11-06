@@ -169,14 +169,14 @@ class CombatSystem:
             "¿Dificil?",
             "El enemigo se ve pensativo",
             "El enemigo golpea al piso",
-            "¿Virtual o real?,"
+            "¿Virtual o real?",
             "¡Cuidado con el borde!",
             "El enemigo te muestra sus músculos",
             "Te falta odio",
             "El enemigo se ríe de ti",
             "Windows defender was disabled",
-            "Pensaste que era un problema, pero era yo, el virus!",
-            "El virus entro a %%APPDATA%%",
+            "Pensaste que era un problema de volumen, pero era yo, el virus!",
+            "El virus entro a %APPDATA%",
             "El virus se burla de tu falta de atención",
             "El virus: ez",
             "El virus: so easy",
@@ -190,8 +190,29 @@ class CombatSystem:
             "Tu determinacion: 15%",
             "Intentos: 67",
             "desinstalando Linkedin...",
-            "Un gmail ha llegado: 'Felicidades has ganado un premio!!'"
-            "Notificacion recibida: 'Если вы это читаете, вы молодец.' "
+            "Un gmail ha llegado: 'Felicidades has ganado un premio!!'",
+            "Notificacion recibida: 'Если вы это читаете, вы молодец.' ",
+            "El ejercito ruso manda",
+            "No podes evitar lo inevitable",
+            "La guerra nunca cambia",
+            "Un simple programador no podra contra nuestro sistema",
+            "La tecnologia Rusa es la mas poderosa del mundo",
+            "JJBA es el mejor anime",
+            "y sí si?",
+            "¿Por qué no?",
+            "Si fuera dev, definitivamente no usaria Pygame",
+            "Linux es superior",
+            "La abundancia es lo mismo que la insuficiencia",
+            "Sabes mucho",
+            "nicki nicole si o no",
+            "¿Esto me convierte en un hacker?",
+
+            # Los textos en ruso estan hechos a proposito y es parte de la historia del juego
+            "Война не закончится, пока мы этого не скажем.",
+            "Программисты не смогут предотвратить наше вторжение.",
+            "суперядро будет нашим",
+            "Мы уже все знаем о твоей бабушке, отпусти нас, и мы не причиним ей вреда.",
+            "Если вы нас устраните, вы будете следующим, кого мы будем искать."
 
         ]
         self._menu_dialog_current = None

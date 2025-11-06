@@ -40,6 +40,7 @@ intentos = 0
 fullscreen = False
 music_volume = 0.5
 current_music_tag = None  # 'menu' | 'battle' | None
+esc_cooldown = 0  # frames para evitar doble ESC que cierre el juego al volver al menú
 
 # --- Screens ---
 main_menu = menu_screen.MainMenu()
@@ -251,7 +252,7 @@ def reset_game():
     player = p.Player()
     all_sprites.add(player)
 
-    enemy = boss.Boss(bullets, all_sprites)
+    enemy = boss.Boss(bullets, all_sprites, music_volume)
     all_sprites.add(enemy)
     # Aplicar dificultad seleccionada
     try:
@@ -287,7 +288,7 @@ def start_battle(practice_phase: int | None = None):
     global bullets, all_sprites, player, enemy, modo_juego, combate, intentos, is_practice_mode
     bullets.empty(); all_sprites.empty()
     player = p.Player(); all_sprites.add(player)
-    enemy = boss.Boss(bullets, all_sprites); all_sprites.add(enemy)
+    enemy = boss.Boss(bullets, all_sprites, music_volume); all_sprites.add(enemy)
     try:
         enemy.difficulty = difficulty_factor
     except Exception:
@@ -295,7 +296,21 @@ def start_battle(practice_phase: int | None = None):
     combate = combat.CombatSystem()
     modo_juego = "batalla"
     intentos += 1
-    reproducir_musica_aleatoria()
+    # Música según fase de inicio (evita que Fase 2 use música de Fase 1)
+    try:
+        if practice_phase == 2:
+            pygame.mixer.music.stop()
+            pygame.mixer.music.load("Juego/assets/Soundtrack/phase2.mp3")
+            pygame.mixer.music.set_volume(music_volume)
+            pygame.mixer.music.play(-1)
+            current_music_tag = "battle"
+        elif practice_phase == 3:
+            # La propia activación de fase 3 se encarga de la música
+            pass
+        else:
+            reproducir_musica_aleatoria()
+    except Exception as e:
+        print(f"⚠️ Error configurando música inicial de práctica: {e}")
     _init_tutorial_hint()
     # Marcar si es modo práctica
     is_practice_mode = (practice_phase is not None)
@@ -333,12 +348,23 @@ play_menu_music_if_needed()
 
 while running:
     clock.tick(c.FPS)
+    # Reducir cooldown de ESC cada frame
+    if esc_cooldown > 0:
+        esc_cooldown -= 1
 
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
         # ESC: vuelve al menú desde cualquier pantalla EXCEPTO cuando ya estás en el menú (ahí sale del juego)
         if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+            # Anti-repeat: si aún está en cooldown, ignorar
+            if esc_cooldown > 0:
+                continue
+            # Establecer cooldown ~0.3s
+            try:
+                esc_cooldown = max(8, c.FPS // 3)
+            except Exception:
+                esc_cooldown = 18
             if modo_juego == "menu":
                 # Si estás en el menú, ESC cierra el juego
                 running = False
@@ -401,7 +427,7 @@ while running:
                     modo_juego = "play_select"
                     play_menu_music_if_needed()
                 elif main_menu.next_state == "practice":
-                    practicemenu = practice_screen.PracticeMenu()
+                    practicemenu = practice_screen.PracticeMenu(has_two_stars=(stars_junior and stars_senior))
                     modo_juego = "practice"
                     play_menu_music_if_needed()
                 elif main_menu.next_state == "options":
@@ -415,6 +441,20 @@ while running:
                     modo_juego = "credits"
                     play_menu_music_if_needed()
                 main_menu.next_state = None
+
+        # Cheat UTNFRA en menú (activar modo completo)
+        if event.type == pygame.KEYDOWN and modo_juego == "menu":
+            try:
+                if p.process_menu_cheat_key(event.key):
+                    # Activar estrellas y cambiar música del menú a 'complete'
+                    stars_junior = True
+                    stars_senior = True
+                    pygame.mixer.music.stop()
+                    current_music_tag = None
+                    play_menu_music_if_needed()
+                    print("🟢 Modo completo activado por código UTNFRA")
+            except Exception as e:
+                print(f"⚠️ Error procesando cheat: {e}")
 
         elif modo_juego == "play_select":
             playselect.handle_event(event)
@@ -611,7 +651,7 @@ while running:
                 pygame.mixer.music.stop()
                 try:
                     pygame.mixer.music.load("Juego/assets/Soundtrack/GameOver.mp3")
-                    pygame.mixer.music.set_volume(0.4)
+                    pygame.mixer.music.set_volume(music_volume)
                     pygame.mixer.music.play(0)
                 except Exception as e:
                     print("Error al reproducir GameOver:", e)

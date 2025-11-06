@@ -1,6 +1,25 @@
 import pygame
 import Const as c  
 
+# --- Cheat detector para menú ---
+_cheat_buffer = ""
+
+def process_menu_cheat_key(key) -> bool:
+    """Acumula letras y devuelve True si se ingresó 'UTNFRA'.
+    Debe llamarse solo cuando estás en el menú principal con eventos KEYDOWN.
+    """
+    global _cheat_buffer
+    # Solo letras A-Z
+    if pygame.K_a <= key <= pygame.K_z:
+        ch = chr(key - pygame.K_a + ord('A'))
+        _cheat_buffer = (_cheat_buffer + ch)[-6:]
+        return _cheat_buffer == "UTNFRA"
+    return False
+
+def reset_menu_cheat():
+    global _cheat_buffer
+    _cheat_buffer = ""
+
 class Player(pygame.sprite.Sprite):
     def __init__(self):
         super().__init__()
@@ -48,13 +67,13 @@ class Player(pygame.sprite.Sprite):
 
     def update(self, keys):
         # --- Movimiento ---
-        if keys[pygame.K_LEFT]:
+        if keys[pygame.K_LEFT] or keys[pygame.K_a]:
             self.rect.x -= self.vel
-        if keys[pygame.K_RIGHT]:
+        if keys[pygame.K_RIGHT] or keys[pygame.K_d]:
             self.rect.x += self.vel
-        if keys[pygame.K_UP]:
+        if keys[pygame.K_UP] or keys[pygame.K_w]:
             self.rect.y -= self.vel
-        if keys[pygame.K_DOWN]:
+        if keys[pygame.K_DOWN] or keys[pygame.K_s]:
             self.rect.y += self.vel
 
         # --- Límites del cuadro de movimiento ---
@@ -82,8 +101,10 @@ class Player(pygame.sprite.Sprite):
                 self.image = self.image_normal
                 self.image.set_alpha(255)
 
-        # --- Sprite al presionar X ---
-        if keys[pygame.K_x]:
+        # --- Sprite al presionar X o Numpad 0 ---
+        # ScancodeWrapper no tiene .get; usar indexado directo
+        trigger_pressed = keys[pygame.K_x] or keys[pygame.K_KP0]
+        if trigger_pressed:
             if not self.x_pressed:
                 self.x_pressed = True
                 self.image = self.image_x
