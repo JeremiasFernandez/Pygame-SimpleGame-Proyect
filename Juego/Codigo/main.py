@@ -9,6 +9,7 @@ import screens.play_select as play_select
 import screens.practice as practice_screen
 import screens.options as options_screen
 import screens.credits as credits_screen
+import screens.intro as intro_screen
 from characters.border import Border
 import screens.combat as combat
 
@@ -48,6 +49,7 @@ playselect = None
 practicemenu = None
 optsmenu = None
 creditss = None
+introscreen = None
 
 # --- Tutorial Hint (sprite arriba a la derecha con fadeout) ---
 tutorial_hint_img = None
@@ -476,6 +478,8 @@ while running:
                     except Exception:
                         pass
                     current_music_tag = None
+                    # Crear intro topdown
+                    introscreen = intro_screen.IntroTopdown()
                 else:
                     play_menu_music_if_needed()
                 playselect = None
@@ -503,10 +507,12 @@ while running:
                 modo_juego = "menu"; creditss = None
                 play_menu_music_if_needed()
 
-        # Iniciar batalla desde la pantalla "introducción" original
-        if event.type == pygame.KEYDOWN and modo_juego == "intro" and event.key == pygame.K_x:
-            is_practice_mode = False  # Modo historia normal
-            start_battle()
+        # Intro topdown: delegar eventos
+        if modo_juego == "intro" and introscreen:
+            result = introscreen.handle_event(event)
+            if result == 'start_battle':
+                is_practice_mode = False
+                start_battle()
 
 
     # -----------------------------------------------------
@@ -550,9 +556,9 @@ while running:
         creditss.update(); creditss.draw(screen)
 
     elif modo_juego == "intro":
-        mostrar_texto("Tu computadora tiene un VIRUS...", c.ROJO, c.ALTO // 2 - 50)
-        mostrar_texto(f"Dificultad: {difficulty_label}", (220,220,220), c.ALTO // 2 - 10)
-        mostrar_texto("Presiona [X] para enfrentarlo", c.BLANCO, c.ALTO // 2 + 40)
+        if introscreen:
+            introscreen.update()
+            introscreen.draw(screen)
 
     # --- Batalla ---
     elif modo_juego == "batalla":

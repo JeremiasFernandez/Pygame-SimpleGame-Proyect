@@ -5,8 +5,8 @@ import Const as c
 
 class PracticeMenu:
     def __init__(self, has_two_stars: bool = False):
-        # Agregamos cuarta opción "Unlocked" y movemos "Volver" al final
-        self.options = ["Fase 1", "Fase 2", "¿?", "Unlocked", "Volver"]
+        # Agregamos cuarta opción "Locked" y movemos "Volver" al final
+        self.options = ["Fase 1", "Fase 2", "End", "Bloqueado", "Volver"]
         self.index = 0
         self.selected_phase = None  # 1 | 2 | 3 | 'back'
         self.title_font = pygame.font.Font(None, 60)
