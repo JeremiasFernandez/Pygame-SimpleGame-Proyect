@@ -1,8 +1,26 @@
-import pygame, random, sys, os
+"""
+main.py - Punto de Entrada del Juego
+====================================
+Bossfight: El Troyano
+Juego de combate contra un virus informático con mecánicas de esquiva y ataques.
+"""
+
+# ============================================================================
+# IMPORTS
+# ============================================================================
+import pygame
+import random
+import sys
+import os
+
+# Módulos del juego
 import Const as c
 import characters.player as p
 import characters.bullet as bullet
 import characters.boss as boss
+from characters.border import Border
+
+# Pantallas del juego
 import screens.gameover as gameover
 import screens.menu as menu_screen
 import screens.play_select as play_select
@@ -10,40 +28,79 @@ import screens.practice as practice_screen
 import screens.options as options_screen
 import screens.credits as credits_screen
 import screens.intro as intro_screen
-from characters.border import Border
 import screens.combat as combat
 
+
+# ============================================================================
+# CONFIGURACIÓN INICIAL
+# ============================================================================
+# Cambiar al directorio raíz del proyecto
 os.chdir(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
+# Inicializar Pygame
 pygame.init()
 pygame.mixer.init()
 
-# --- Ventana ---
+
+# ============================================================================
+# VENTANA Y RELOJ
+# ============================================================================
 screen = pygame.display.set_mode((c.ANCHO, c.ALTO))
 pygame.display.set_caption("Bossfight: El troyano")
 clock = pygame.time.Clock()
 
-# --- Grupos ---
+
+# ============================================================================
+# GRUPOS DE SPRITES
+# ============================================================================
 all_sprites = pygame.sprite.Group()
 bullets = pygame.sprite.Group()
 
-# --- Jugador ---
+
+# ============================================================================
+# ENTIDADES PRINCIPALES
+# ============================================================================
 player = p.Player()
 all_sprites.add(player)
-
-# --- Variables globales ---
 enemy = None
-modo_juego = "menu"  # Nuevo menú principal previo a 'intro'
-font = pygame.font.Font(None, 36)
 border = Border()
 combate = None
-intentos = 0
-fullscreen = False
-music_volume = 0.5
-current_music_tag = None  # 'menu' | 'battle' | None
-esc_cooldown = 0  # frames para evitar doble ESC que cierre el juego al volver al menú
 
-# --- Screens ---
+
+# ============================================================================
+# VARIABLES GLOBALES DEL JUEGO
+# ============================================================================
+# Estado del juego
+modo_juego = "menu"  # Estados: menu, intro, batalla, victoria, etc.
+running = True
+intentos = 0
+is_practice_mode = False
+
+# Configuración de audio
+music_volume = 0.5
+current_music_tag = None  # Tags: 'menu', 'menu_complete', 'battle'
+
+# Configuración de pantalla
+fullscreen = False
+
+# Dificultad
+difficulty_label = "Senior"
+difficulty_factor = 1.0
+
+# Estrellas de logros (persistentes entre partidas)
+stars_junior = False
+stars_senior = False
+
+# UI y efectos
+esc_cooldown = 0  # Prevenir doble-ESC accidental
+titulo_troyano_timer = 0
+font = pygame.font.Font(None, 36)
+titulo_font = pygame.font.Font(None, 80)
+
+
+# ============================================================================
+# PANTALLAS INSTANCIADAS
+# ============================================================================
 main_menu = menu_screen.MainMenu()
 playselect = None
 practicemenu = None
@@ -51,34 +108,46 @@ optsmenu = None
 creditss = None
 introscreen = None
 
-# --- Tutorial Hint (sprite arriba a la derecha con fadeout) ---
+
+# ============================================================================
+# TUTORIAL HINT (Sprite temporal con fadeout)
+# ============================================================================
 tutorial_hint_img = None
 tutorial_hint_total = 10 * c.FPS  # ~10 segundos
 tutorial_hint_ticks = 0
 
-# --- Star GIF handling ---
+
+# ============================================================================
+# ANIMACIÓN DE ESTRELLAS (GIF)
+# ============================================================================
 star_frames = []
 star_frame_index = 0
 star_frame_timer = 0
-star_frame_delay = 5  # Frames entre cada cambio de imagen del GIF
+star_frame_delay = 5  # Frames entre cada cambio de imagen
 
+
+# ============================================================================
+# FUNCIONES DE CARGA DE RECURSOS
+# ============================================================================
 def _load_star_gif():
-    """Carga el GIF de la estrella y extrae sus frames."""
+    """
+    Carga el GIF de la estrella y extrae todos sus frames para animación.
+    Si falla, intenta cargar el PNG estático como fallback.
+    """
     global star_frames
     if star_frames:
         return
+    
     try:
         from PIL import Image
         gif_path = os.path.join("Juego", "assets", "Sprites", "star.gif")
         gif = Image.open(gif_path)
         frames = []
+        
         try:
             while True:
-                # Convertir frame a RGBA
                 frame = gif.convert("RGBA")
-                # Escalar a 40x40
                 frame = frame.resize((60, 60), Image.Resampling.LANCZOS)
-                # Convertir PIL a Pygame surface
                 mode = frame.mode
                 size = frame.size
                 data = frame.tobytes()
@@ -87,6 +156,7 @@ def _load_star_gif():
                 gif.seek(gif.tell() + 1)
         except EOFError:
             pass
+        
         star_frames = frames
         print(f"⭐ Star GIF cargado: {len(frames)} frames")
     except ImportError:
@@ -96,8 +166,9 @@ def _load_star_gif():
         print(f"⚠️ No se pudo cargar star.gif: {e}, usando PNG estático")
         _load_star_png()
 
+
 def _load_star_png():
-    """Fallback: carga star.png como único frame."""
+    """Fallback: carga star.png como único frame estático."""
     global star_frames
     try:
         png_path = os.path.join("Juego", "assets", "Sprites", "star.png")
@@ -109,11 +180,38 @@ def _load_star_png():
         print(f"⚠️ No se pudo cargar star.png: {e}")
         star_frames = []
 
+
+def _init_tutorial_hint():
+    """Inicializa el hint/sprite del tutorial con fadeout temporal."""
+    global tutorial_hint_img, tutorial_hint_ticks
+    tutorial_hint_ticks = tutorial_hint_total
+    
+    if tutorial_hint_img is None:
+        try:
+            path = os.path.join("Juego", "assets", "Sprites", "tutorial_hint.png")
+            img = pygame.image.load(path).convert_alpha()
+            # Triplicar tamaño
+            new_w = int(img.get_width() * 3)
+            new_h = int(img.get_height() * 3)
+            if new_w > 0 and new_h > 0:
+                img = pygame.transform.smoothscale(img, (new_w, new_h))
+            tutorial_hint_img = img
+            print(f"ℹ️ Tutorial hint cargado: {path}")
+        except Exception as e:
+            tutorial_hint_img = None
+            print(f"⚠️ No se pudo cargar tutorial_hint.png: {e}")
+
+
+# ============================================================================
+# FUNCIONES DE RENDERIZADO
+# ============================================================================
 def _draw_stars(screen):
-    """Dibuja las estrellas animadas en el menú."""
+    """Dibuja las estrellas animadas en el menú principal."""
     global star_frame_index, star_frame_timer
+    
     if not (stars_junior or stars_senior):
         return
+    
     if not star_frames:
         _load_star_gif()
     if not star_frames:
@@ -127,38 +225,23 @@ def _draw_stars(screen):
     
     current_frame = star_frames[star_frame_index]
     base_x = c.ANCHO // 2 - 50
-    # Posicionar por encima del título del menú (título centrado en y≈120)
-    base_y = 30
+    base_y = 30  # Por encima del título del menú
     
     if stars_junior:
         screen.blit(current_frame, (base_x, base_y))
     if stars_senior:
         screen.blit(current_frame, (base_x + 60, base_y))
 
-def _init_tutorial_hint():
-    global tutorial_hint_img, tutorial_hint_ticks
-    tutorial_hint_ticks = tutorial_hint_total
-    if tutorial_hint_img is None:
-        try:
-            path = os.path.join("Juego", "assets", "Sprites", "tutorial_hint.png")
-            img = pygame.image.load(path).convert_alpha()
-            # Triplicar su tamaño explícitamente
-            new_w = int(img.get_width() * 3)
-            new_h = int(img.get_height() * 3)
-            if new_w > 0 and new_h > 0:
-                img = pygame.transform.smoothscale(img, (new_w, new_h))
-            tutorial_hint_img = img
-            print(f"ℹ️ Tutorial hint cargado: {path}")
-        except Exception as e:
-            tutorial_hint_img = None
-            print(f"⚠️ No se pudo cargar tutorial_hint.png: {e}")
 
 def _draw_tutorial_hint(screen, enemy):
+    """Dibuja el hint del tutorial con fadeout progresivo."""
     global tutorial_hint_ticks
+    
     if tutorial_hint_ticks <= 0:
         return
+    
     if tutorial_hint_img is None:
-        # Fallback: cajita con texto
+        # Fallback: caja con texto
         alpha = int(200 * (tutorial_hint_ticks / tutorial_hint_total))
         box = pygame.Surface((220, 50), pygame.SRCALPHA)
         box.fill((20, 20, 40, alpha))
@@ -166,7 +249,6 @@ def _draw_tutorial_hint(screen, enemy):
         box.blit(txt, (10, 15))
         x = c.ANCHO - box.get_width() - 12
         y = 12
-        # Si hay jefe, intentar ubicarla junto a su lado derecho
         if enemy:
             ex, ey, ew, eh = enemy.rect
             x = min(c.ANCHO - box.get_width() - 12, ex + ew + 40)
@@ -177,49 +259,51 @@ def _draw_tutorial_hint(screen, enemy):
         alpha = max(0, min(255, int(255 * (tutorial_hint_ticks / tutorial_hint_total))))
         img = tutorial_hint_img.copy()
         img.set_alpha(alpha)
-        # Posicionar al lado del jefe (preferido) o en esquina sup. derecha
         x = c.ANCHO - img.get_width() - 12
         y = 12
         if enemy:
             ex, ey, ew, eh = enemy.rect
-            # Más a la derecha y más abajo respecto del jefe
             x = min(c.ANCHO - img.get_width() - 12, ex + ew + 40)
             y = max(12, ey + 60)
         screen.blit(img, (x, y))
-    # Decrementar contador por frame
+    
+    # Decrementar contador
     tutorial_hint_ticks -= 1
 
-# ---------------------------------------------------------
+
 def mostrar_texto(texto, color, y):
+    """Renderiza y centra un texto en la pantalla."""
     render = font.render(texto, True, color)
     rect = render.get_rect(center=(c.ANCHO // 2, y))
     screen.blit(render, rect)
 
-# ---------------------------------------------------------
+
+# ============================================================================
+# FUNCIONES DE AUDIO
+# ============================================================================
 def reproducir_musica_aleatoria():
     """Selecciona y reproduce una canción de fase 1 al azar."""
+    global current_music_tag
+    
     pygame.mixer.music.stop()
     versiones = ["phase1", "phase1B", "phase1C", "phase1D", "phase1E", "phase1F", "phase1G", "phase1H"]
     eleccion = random.choice(versiones)
     ruta = f"Juego/assets/Soundtrack/{eleccion}.mp3"
+    
     try:
         pygame.mixer.music.load(ruta)
-        try:
-            vol = music_volume
-        except NameError:
-            vol = 0.5
-        pygame.mixer.music.set_volume(vol)
+        pygame.mixer.music.set_volume(music_volume)
         pygame.mixer.music.play(-1)
+        current_music_tag = "battle"
         print(f"🎵 Música seleccionada: {eleccion}")
     except Exception as e:
         print(f"⚠️ No se pudo cargar la música {eleccion}: {e}")
-    # Marcar como música de batalla
-    global current_music_tag
-    current_music_tag = "battle"
+
 
 def play_menu_music_if_needed():
-    """Reproduce el tema del menú si no está ya sonando."""
+    """Reproduce la música del menú apropiada según los logros desbloqueados."""
     global current_music_tag
+    
     # Determinar qué música debería estar sonando
     if stars_junior and stars_senior:
         target_tag = "menu_complete"
@@ -244,10 +328,14 @@ def play_menu_music_if_needed():
     except Exception as e:
         print(f"⚠️ No se pudo reproducir música de menú: {e}")
 
-# ---------------------------------------------------------
+
+# ============================================================================
+# FUNCIONES DE CONTROL DEL JUEGO
+# ============================================================================
 def reset_game():
-    """Reinicia todo el combate."""
+    """Reinicia completamente el combate (para reintentar tras game over)."""
     global bullets, all_sprites, player, enemy, modo_juego, combate, intentos
+    
     bullets.empty()
     all_sprites.empty()
 
@@ -256,7 +344,7 @@ def reset_game():
 
     enemy = boss.Boss(bullets, all_sprites, music_volume)
     all_sprites.add(enemy)
-    # Aplicar dificultad seleccionada
+    
     try:
         enemy.difficulty = difficulty_factor
     except Exception:
@@ -268,14 +356,17 @@ def reset_game():
     reproducir_musica_aleatoria()
     _init_tutorial_hint()
 
-# ---------------------------------------------------------
+
 def apply_fullscreen(value: bool):
+    """Aplica o desactiva el modo de pantalla completa."""
     global screen, fullscreen
     fullscreen = bool(value)
     flags = pygame.FULLSCREEN if fullscreen else 0
     screen = pygame.display.set_mode((c.ANCHO, c.ALTO), flags)
 
+
 def apply_music_volume(value: float):
+    """Ajusta el volumen de la música."""
     global music_volume
     music_volume = max(0.0, min(1.0, float(value)))
     try:
@@ -283,22 +374,38 @@ def apply_music_volume(value: float):
     except Exception:
         pass
 
+
 def start_battle(practice_phase: int | None = None):
-    """Inicia la batalla desde el menú o práctica.
-    practice_phase: 1,2,3 para saltar directo a esa fase.
     """
-    global bullets, all_sprites, player, enemy, modo_juego, combate, intentos, is_practice_mode
-    bullets.empty(); all_sprites.empty()
-    player = p.Player(); all_sprites.add(player)
-    enemy = boss.Boss(bullets, all_sprites, music_volume); all_sprites.add(enemy)
+    Inicia una batalla desde el menú o el modo práctica.
+    
+    Args:
+        practice_phase: Fase a practicar (1, 2, 3), o None para batalla normal.
+    """
+    global bullets, all_sprites, player, enemy, modo_juego, combate, intentos
+    global is_practice_mode, current_music_tag
+    
+    # Limpiar y reiniciar entidades
+    bullets.empty()
+    all_sprites.empty()
+    
+    player = p.Player()
+    all_sprites.add(player)
+    
+    enemy = boss.Boss(bullets, all_sprites, music_volume)
+    all_sprites.add(enemy)
+    
     try:
         enemy.difficulty = difficulty_factor
     except Exception:
         pass
+    
     combate = combat.CombatSystem()
     modo_juego = "batalla"
     intentos += 1
-    # Música según fase de inicio (evita que Fase 2 use música de Fase 1)
+    is_practice_mode = (practice_phase is not None)
+    
+    # Configurar música según fase
     try:
         if practice_phase == 2:
             pygame.mixer.music.stop()
@@ -307,16 +414,15 @@ def start_battle(practice_phase: int | None = None):
             pygame.mixer.music.play(-1)
             current_music_tag = "battle"
         elif practice_phase == 3:
-            # La propia activación de fase 3 se encarga de la música
-            pass
+            pass  # La fase 3 maneja su propia música
         else:
             reproducir_musica_aleatoria()
     except Exception as e:
         print(f"⚠️ Error configurando música inicial de práctica: {e}")
+    
     _init_tutorial_hint()
-    # Marcar si es modo práctica
-    is_practice_mode = (practice_phase is not None)
-    # Ajustes de práctica
+    
+    # Ajustes de fase para modo práctica
     if practice_phase == 2:
         try:
             enemy._enter_phase2()
@@ -331,23 +437,17 @@ def start_battle(practice_phase: int | None = None):
             enemy.hp = 70
             enemy.difficulty = max(getattr(enemy, 'difficulty', 1.0), 1.6)
 
-# ---------------------------------------------------------
-running = True
-titulo_troyano_timer = 0
-titulo_font = pygame.font.Font(None, 80)
 
-# Dificultad por defecto (Senior = normal)
-difficulty_label = "Senior"
-difficulty_factor = 1.0
-
-# Estrellas de victoria (persistentes entre partidas)
-stars_junior = False
-stars_senior = False
-is_practice_mode = False  # Para no dar estrellas en práctica
-
+# ============================================================================
+# INICIALIZACIÓN
+# ============================================================================
 # Iniciar música de menú al arrancar
 play_menu_music_if_needed()
 
+
+# ============================================================================
+# BUCLE PRINCIPAL
+# ============================================================================
 while running:
     clock.tick(c.FPS)
     # Reducir cooldown de ESC cada frame
