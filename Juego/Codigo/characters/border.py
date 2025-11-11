@@ -22,7 +22,7 @@ class Border:
             self.estado = "avisando"
             self.timer = 0
             self.duracion = c.BORDE_DURACION
-            print("⚠️ El borde empieza a titilar...")
+            print("[WARNING] El borde empieza a titilar...")
 
         # --- Fases ---
         if self.activo:
@@ -66,7 +66,7 @@ class Border:
         self.duracion = c.BORDE_DURACION
         self.intervalo = random.randint(c.BORDE_INTERVALO_MIN, c.BORDE_INTERVALO_MAX)
         self.color = c.GRIS
-        print("🟢 El borde vuelve a la normalidad")
+        print("[OK] El borde vuelve a la normalidad")
 
     def draw(self, screen):
         """Dibuja el borde actual."""

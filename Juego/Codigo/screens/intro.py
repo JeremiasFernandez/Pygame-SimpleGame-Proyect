@@ -113,7 +113,7 @@ class IntroTopdown:
                 self.battle_transition_snd.set_volume(0.5)
             except Exception:
                 self.battle_transition_snd = self.select_snd  # Use menu select as fallback
-                print("⚠️ No se pudo cargar sonido de transición de batalla, usando fallback")
+                print("[WARNING] No se pudo cargar sonido de transición de batalla, usando fallback")
 
     def _load_or_fallback(self, path, size, color):
         try:

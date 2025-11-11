@@ -63,10 +63,10 @@ class Boss(pygame.sprite.Sprite):
         # --- Posicionamiento manual por fase ---
         # Cambia estas posiciones a gusto. Anchor puede ser: "midbottom", "center" o "topleft".
         self.positioning = {
-               1: (400, 140),        # Fase 1: centro en (x=400, y=140)  ← EDITÁ AQUÍ
-               2: (400, 140),        # Fase 2: centro                     ← EDITÁ AQUÍ
-               3: (400, 140),        # Fase 3: centro                     ← EDITÁ AQUÍ
-               "defeated": (400, 160) # Derrotado: centro                  ← EDITÁ AQUÍ
+               1: (400, 140),        # Fase 1: centro en (x=400, y=140)
+               2: (400, 140),        # Fase 2: centro
+               3: (400, 140),        # Fase 3: centro
+               "defeated": (400, 160) # Derrotado: centro
         }
 
         # Aplicar posición para fase 1 (anchor midbottom, siempre igual)
@@ -88,14 +88,14 @@ class Boss(pygame.sprite.Sprite):
         # Ataques por fase
         self.phase1_attacks = ["attack_tutorial", "attack_rain", "attack_diagonal", "attack_lateral1", "attack_lateral2", "attack_burst1", "attack_burst3"]
         self.phase2_attacks = ["attack_spears", "attack_spearstorm"]  # Phase 2 only uses spear attacks
-        # Ataques más intensos (fase 3) - ¡CREATIVOS Y BALANCEADOS!
+        # Ataques más intensos (fase 3)
         self.phase3_attacks = [
             "attack_spears",
             "attack_spearstorm",
             "attack_spearain",
             "attack_spearwaves",
-            "attack_spearcross",    # ➕ Cruz expansiva
-            "attack_ballscircle",   # ⭕ Círculo de bolas giratorias
+            "attack_spearcross",
+            "attack_ballscircle",
         ]
 
         # Variables de animación y efectos visuales
@@ -216,7 +216,7 @@ class Boss(pygame.sprite.Sprite):
                     attack_method = getattr(self.attack_manager, self.current_attack)
                     attack_method(self.timer, self.difficulty)
                 except AttributeError:
-                    print(f"⚠️ Ataque no implementado: {self.current_attack}")
+                    print(f"[WARNING] Ataque no implementado: {self.current_attack}")
                     self.current_attack = None
                     self.attack_timer = 60
                 except Exception as e:
@@ -264,7 +264,7 @@ class Boss(pygame.sprite.Sprite):
                         attack_method(self.timer, self.difficulty)
                         self.attack_timer = 120  # Reiniciar el timer después del ataque
                     except AttributeError:
-                        print(f"⚠️ Ataque no implementado: {self.current_attack}")
+                        print(f"[WARNING] Ataque no implementado: {self.current_attack}")
                         self.current_attack = None
                     except Exception as e:
                         print(f"❌ Error ejecutando ataque: {e}")
@@ -285,14 +285,14 @@ class Boss(pygame.sprite.Sprite):
                     attack_method = getattr(self.attack_manager, self.current_attack)
                     attack_method(self.timer, self.difficulty)
                 except AttributeError as e:
-                    print(f"⚠️ Ataque no implementado: {self.current_attack}")
+                    print(f"[WARNING] Ataque no implementado: {self.current_attack}")
                     self.current_attack = None
                     self.attack_timer = 60
                 except Exception as e:
                     print(f"❌ Error ejecutando ataque {self.current_attack}:", e)
         except Exception as e:
             print("❌ Error general en _select_and_execute_attack:", e)
-            print(f"⚠️ Ataque no implementado: {self.current_attack}")
+            print(f"[WARNING] Ataque no implementado: {self.current_attack}")
             self.current_attack = None
             self.attack_timer = 60
 
@@ -663,9 +663,9 @@ class Boss(pygame.sprite.Sprite):
                     pygame.mixer.music.set_volume(self.music_volume)
                     pygame.mixer.music.play(-1)
                     self.phase2_music_started = True
-                    print("🎵 Música de fase 2 iniciada")
+                    print("[MUSIC] Musica de fase 2 iniciada")
                 except Exception as e:
-                    print(f"⚠️ Error cargando música fase 2: {e}")
+                    print(f"[WARNING] Error cargando musica fase 2: {e}")
                     
         elif self.phase == 2 and self.hp <= 0:
             print("🔄 Iniciando transición a fase 3")

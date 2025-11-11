@@ -67,7 +67,7 @@ class VictoryScreen:
             self.victory_sound.set_volume(0.6)
         except Exception:
             self.victory_sound = None
-            print("⚠️ No se pudo cargar sonido de victoria")
+            print("[WARNING] No se pudo cargar sonido de victoria")
         
         try:
             self.menu_move = pygame.mixer.Sound(os.path.join("Juego", "assets", "Sounds", "menu_move.wav"))
@@ -96,7 +96,7 @@ class VictoryScreen:
                     pygame.mixer.music.load(path)
                     pygame.mixer.music.set_volume(0.5)
                     pygame.mixer.music.play(-1)
-                    print(f"🎵 Música de victoria: {path}")
+                    print(f"[MUSIC] Musica de victoria: {path}")
                     break
                 except Exception:
                     continue
@@ -106,7 +106,7 @@ class VictoryScreen:
                 self.victory_sound.play()
         
         except Exception as e:
-            print(f"⚠️ Error reproduciendo música de victoria: {e}")
+            print(f"[WARNING] Error reproduciendo música de victoria: {e}")
     
     def _create_particles(self):
         """Crea partículas de celebración."""
@@ -246,7 +246,7 @@ class VictoryScreen:
             
             # Mensaje de estrella (si aplica)
             if self.text_reveal_progress > 0.6 and not self.is_practice:
-                star_text = f"⭐ ¡Estrella {self.difficulty_label} obtenida!"
+                star_text = f"[STAR] ¡Estrella {self.difficulty_label} obtenida!"
                 star_surf = self.text_font.render(star_text, True, (255, 215, 0))
                 screen.blit(star_surf, star_surf.get_rect(center=(c.ANCHO // 2, y_offset + 120)))
             

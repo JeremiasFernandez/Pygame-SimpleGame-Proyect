@@ -90,7 +90,7 @@ class Player(pygame.sprite.Sprite):
             self.image_damaged = pygame.transform.scale(self.image_damaged, (32, 32))
             self.image_x = pygame.transform.scale(self.image_x, (32, 32))
         except Exception as e:
-            print(f"⚠️ Error cargando sprites del jugador: {e}")
+            print(f"[WARNING] Error cargando sprites del jugador: {e}")
             # Crear sprites de fallback
             self.image_normal = pygame.Surface((32, 32))
             self.image_normal.fill((100, 100, 255))
@@ -104,14 +104,14 @@ class Player(pygame.sprite.Sprite):
             self.damage_sound.set_volume(0.4)
         except:
             self.damage_sound = None
-            print("⚠️ No se pudo cargar el sonido de daño.")
+            print("[WARNING] No se pudo cargar el sonido de daño.")
         
         try:
             self.sonido_cambio = pygame.mixer.Sound("Juego/assets/Sounds/clicking.wav")
             self.sonido_cambio.set_volume(0.4)
         except:
             self.sonido_cambio = None
-            print("⚠️ No se pudo cargar el sonido de click.")
+            print("[WARNING] No se pudo cargar el sonido de click.")
     
     def update(self, keys):
         """

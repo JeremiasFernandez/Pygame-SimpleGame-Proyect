@@ -55,7 +55,7 @@ class AttackManager:
             print(f"🔸 simplebullet cargado: {sb_path}")
         except Exception:
             # Fallback: se usará el cuadrado blanco por defecto del Bullet
-            print("ℹ️  simplebullet.png no encontrado; usando forma por defecto para balas simples")
+            print("[INFO]  simplebullet.png no encontrado; usando forma por defecto para balas simples")
 
         # Preload optional spear sprites in all directions (falls back to rectangles if missing)
         # Base spear.png is assumed to point UP; we derive DOWN/LEFT/RIGHT by rotation.
@@ -80,7 +80,7 @@ class AttackManager:
             print(f"🗡️  Spear sprite cargado y orientaciones generadas: {spear_path}")
         except Exception:
             # No sprite available; rectangular fallback will be used
-            print("⚠️  Spear sprite no encontrado, usando rectángulos (buscado spear.png en Juego/assets/Sprites)")
+            print("[WARNING]  Spear sprite no encontrado, usando rectángulos (buscado spear.png en Juego/assets/Sprites)")
 
         # --- Sprite y sonido para indicador de spearcross ---
         self.spearcross_indicator = None
@@ -89,9 +89,9 @@ class AttackManager:
             indicator_path = os.path.join("Juego", "assets", "Sprites", "warning.png")
             base = pygame.image.load(indicator_path).convert_alpha()
             self.spearcross_indicator = pygame.transform.smoothscale(base, (50, 50))
-            print(f"⚠️  Cross indicator sprite cargado: {indicator_path}")
+            print(f"[WARNING]  Cross indicator sprite cargado: {indicator_path}")
         except Exception:
-            print("ℹ️  warning.png no encontrado; usando círculo rojo como fallback")
+            print("[INFO]  warning.png no encontrado; usando círculo rojo como fallback")
 
         try:
             sound_path = os.path.join("Juego", "assets", "Sounds", "crosswarning.wav")
@@ -99,7 +99,7 @@ class AttackManager:
             self.spearcross_sound.set_volume(0.6)
             print(f"🔊 Cross warning sound cargado: {sound_path}")
         except Exception:
-            print("ℹ️  crosswarning.wav no encontrado; ataque sin sonido de advertencia")
+            print("[INFO]  crosswarning.wav no encontrado; ataque sin sonido de advertencia")
 
         # Variables para el efecto de titileo
         self.spearcross_flash_timer = 0
@@ -738,7 +738,7 @@ class AttackManager:
                     print("🔵 ballcircle.png cargado (50x50)")
                 except Exception:
                     self.ballcircle50 = None  # se usará fallback dibujado
-                    print("ℹ️  ballcircle.png no encontrado, usando círculo dibujado 50x50")
+                    print("[INFO]  ballcircle.png no encontrado, usando círculo dibujado 50x50")
 
             # Configuración del patrón
             num_balls = 2

@@ -41,9 +41,9 @@ class AttackEffect(pygame.sprite.Sprite):
                 pass
             print(f"⚔️ Slash GIF cargado: {len(self.frames)} frames")
         except ImportError:
-            print("⚠️ PIL/Pillow no disponible para slash.gif, usando fallback")
+            print("[WARNING] PIL/Pillow no disponible para slash.gif, usando fallback")
         except Exception as e:
-            print(f"⚠️ Error cargando slash.gif: {e}, usando fallback")
+            print(f"[WARNING] Error cargando slash.gif: {e}, usando fallback")
 
     def _create_fallback_frame(self):
         """Crea un frame de respaldo si el GIF no se pudo cargar."""
@@ -113,7 +113,7 @@ class CombatSystem:
             self.atacar_normal = pygame.transform.scale(self.atacar_normal, (100, 46))
             print(f"✅ Sprite atacar_normal cargado: {atacar_n_path}")
         except Exception:
-            print("ℹ️  atacar_normal.png no encontrado; usando texto")
+            print("[INFO]  atacar_normal.png no encontrado; usando texto")
         
         try:
             atacar_s_path = os.path.join("Juego", "assets", "Sprites", "atacar_selected.png")
@@ -121,7 +121,7 @@ class CombatSystem:
             self.atacar_selected = pygame.transform.scale(self.atacar_selected, (100, 46))
             print(f"✅ Sprite atacar_selected cargado: {atacar_s_path}")
         except Exception:
-            print("ℹ️  atacar_selected.png no encontrado; usando texto")
+            print("[INFO]  atacar_selected.png no encontrado; usando texto")
         
         try:
             curarse_n_path = os.path.join("Juego", "assets", "Sprites", "curarse_normal.png")
@@ -129,7 +129,7 @@ class CombatSystem:
             self.curarse_normal = pygame.transform.scale(self.curarse_normal, (100, 46))
             print(f"✅ Sprite curarse_normal cargado: {curarse_n_path}")
         except Exception:
-            print("ℹ️  curarse_normal.png no encontrado; usando texto")
+            print("[INFO]  curarse_normal.png no encontrado; usando texto")
         
         try:
             curarse_s_path = os.path.join("Juego", "assets", "Sprites", "curarse_selected.png")
@@ -137,7 +137,7 @@ class CombatSystem:
             self.curarse_selected = pygame.transform.scale(self.curarse_selected, (100, 46))
             print(f"✅ Sprite curarse_selected cargado: {curarse_s_path}")
         except Exception:
-            print("ℹ️  curarse_selected.png no encontrado; usando texto")
+            print("[INFO]  curarse_selected.png no encontrado; usando texto")
 
         # --- Diálogos de menú ---
         # Agrega aquí todos los textos que quieras que aparezcan aleatoriamente al entrar al menú.
@@ -248,11 +248,11 @@ class CombatSystem:
                 self.openai_available = True
                 print("✅ OpenAI configurado correctamente")
             except ImportError:
-                print("⚠️ OpenAI no instalado. Ejecuta: pip install openai")
+                print("[WARNING] OpenAI no instalado. Ejecuta: pip install openai")
             except Exception as e:
-                print(f"⚠️ Error configurando OpenAI: {e}")
+                print(f"[WARNING] Error configurando OpenAI: {e}")
         else:
-            print("⚠️ OPENAI_API_KEY no configurada en Const.py")
+            print("[WARNING] OPENAI_API_KEY no configurada en Const.py")
 
         # Fallback offline (respuestas simuladas) para errores (cuota / red)
         self.ai_fallback_enabled = getattr(c, 'AI_FALLBACK_ON_ERROR', True)
@@ -326,7 +326,7 @@ class CombatSystem:
         
         if not self.openai_available:
             self.chat_error = "OpenAI no esta configurado. Revisa Const.py y lee RESUMEN_CHAT.md"
-            print("⚠️ Chat abierto pero OpenAI no disponible")
+            print("[WARNING] Chat abierto pero OpenAI no disponible")
         else:
             self.chat_error = ""
             print("💬 Chat activado - Escribe tu mensaje y presiona ENTER")
@@ -346,7 +346,7 @@ class CombatSystem:
                 return
             else:
                 self.chat_error = "OpenAI no esta configurado. Instala con: pip install openai"
-                print("⚠️ Intento de enviar mensaje sin OpenAI configurado")
+                print("[WARNING] Intento de enviar mensaje sin OpenAI configurado")
                 return
         
         self.chat_loading = True

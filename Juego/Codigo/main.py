@@ -13,6 +13,17 @@ import random
 import sys
 import os
 
+# ============================================================================
+# FIX PARA PYINSTALLER - Ajustar rutas de assets
+# ============================================================================
+if getattr(sys, 'frozen', False):
+    # Ejecutándose como .exe compilado
+    # PyInstaller extrae archivos a sys._MEIPASS
+    os.chdir(sys._MEIPASS)
+else:
+    # Ejecutándose como script Python - ir a la raíz del proyecto
+    os.chdir(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..'))
+
 # Módulos del juego
 import Const as c
 import characters.player as p
@@ -35,9 +46,6 @@ import screens.combat as combat
 # ============================================================================
 # CONFIGURACIÓN INICIAL
 # ============================================================================
-# Cambiar al directorio raíz del proyecto
-os.chdir(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-
 # Inicializar Pygame
 pygame.init()
 pygame.mixer.init()
@@ -160,12 +168,12 @@ def _load_star_gif():
             pass
         
         star_frames = frames
-        print(f"⭐ Star GIF cargado: {len(frames)} frames")
+        print(f"[STAR] Star GIF cargado: {len(frames)} frames")
     except ImportError:
-        print("⚠️ PIL/Pillow no disponible, usando PNG estático")
+        print("[WARNING] PIL/Pillow no disponible, usando PNG estatico")
         _load_star_png()
     except Exception as e:
-        print(f"⚠️ No se pudo cargar star.gif: {e}, usando PNG estático")
+        print(f"[WARNING] No se pudo cargar star.gif: {e}, usando PNG estatico")
         _load_star_png()
 
 
@@ -177,9 +185,9 @@ def _load_star_png():
         img = pygame.image.load(png_path).convert_alpha()
         img = pygame.transform.smoothscale(img, (40, 40))
         star_frames = [img]
-        print("⭐ Star PNG cargado como fallback")
+        print("[STAR] Star PNG cargado como fallback")
     except Exception as e:
-        print(f"⚠️ No se pudo cargar star.png: {e}")
+        print(f"[WARNING] No se pudo cargar star.png: {e}")
         star_frames = []
 
 
@@ -198,10 +206,10 @@ def _init_tutorial_hint():
             if new_w > 0 and new_h > 0:
                 img = pygame.transform.smoothscale(img, (new_w, new_h))
             tutorial_hint_img = img
-            print(f"ℹ️ Tutorial hint cargado: {path}")
+            print(f"[INFO] Tutorial hint cargado: {path}")
         except Exception as e:
             tutorial_hint_img = None
-            print(f"⚠️ No se pudo cargar tutorial_hint.png: {e}")
+            print(f"[WARNING] No se pudo cargar tutorial_hint.png: {e}")
 
 
 # ============================================================================
@@ -297,9 +305,9 @@ def reproducir_musica_aleatoria():
         pygame.mixer.music.set_volume(music_volume)
         pygame.mixer.music.play(-1)
         current_music_tag = "battle"
-        print(f"🎵 Música seleccionada: {eleccion}")
+        print(f"[MUSIC] Musica seleccionada: {eleccion}")
     except Exception as e:
-        print(f"⚠️ No se pudo cargar la música {eleccion}: {e}")
+        print(f"[WARNING] No se pudo cargar la musica {eleccion}: {e}")
 
 
 def play_menu_music_if_needed():
@@ -310,11 +318,11 @@ def play_menu_music_if_needed():
     if stars_junior and stars_senior:
         target_tag = "menu_complete"
         ruta = "Juego/assets/Soundtrack/menu_theme_complete.mp3"
-        msg = "🎵 Música de menú COMPLETA: menu_theme_complete.mp3"
+        msg = "[MUSIC] Musica de menu COMPLETA: menu_theme_complete.mp3"
     else:
         target_tag = "menu"
         ruta = "Juego/assets/Soundtrack/menu_theme.mp3"
-        msg = "🎵 Música de menú reproduciendo: menu_theme.mp3"
+        msg = "[MUSIC] Musica de menu reproduciendo: menu_theme.mp3"
     
     # Si ya está sonando la correcta, no hacer nada
     if current_music_tag == target_tag:
@@ -328,7 +336,7 @@ def play_menu_music_if_needed():
         current_music_tag = target_tag
         print(msg)
     except Exception as e:
-        print(f"⚠️ No se pudo reproducir música de menú: {e}")
+        print(f"[WARNING] No se pudo reproducir musica de menu: {e}")
 
 
 # ============================================================================
@@ -420,7 +428,7 @@ def start_battle(practice_phase: int | None = None):
         else:
             reproducir_musica_aleatoria()
     except Exception as e:
-        print(f"⚠️ Error configurando música inicial de práctica: {e}")
+        print(f"[WARNING] Error configurando musica inicial de practica: {e}")
     
     _init_tutorial_hint()
     
@@ -573,9 +581,9 @@ while running:
                     pygame.mixer.music.stop()
                     current_music_tag = None
                     play_menu_music_if_needed()
-                    print("🟢 Modo completo activado por código UTNFRA")
+                    print("[CHEAT] Modo completo activado por codigo UTNFRA")
             except Exception as e:
-                print(f"⚠️ Error procesando cheat: {e}")
+                print(f"[WARNING] Error procesando cheat: {e}")
 
         elif modo_juego == "play_select":
             playselect.handle_event(event)
@@ -844,10 +852,10 @@ while running:
         if not is_practice_mode:
             if difficulty_label == "Junior" and not stars_junior:
                 stars_junior = True
-                print("⭐ ¡Estrella Junior desbloqueada!")
+                print("[STAR] ¡Estrella Junior desbloqueada!")
             elif difficulty_label == "Senior" and not stars_senior:
                 stars_senior = True
-                print("⭐ ¡Estrella Senior desbloqueada!")
+                print("[STAR] ¡Estrella Senior desbloqueada!")
             # Actualizar música si ahora tiene ambas
             if stars_junior and stars_senior:
                 try:

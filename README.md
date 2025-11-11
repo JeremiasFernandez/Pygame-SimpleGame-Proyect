@@ -9,9 +9,19 @@
 
 **Un juego de acción bullet-hell con elementos RPG desarrollado en Python con Pygame**
 
-[Características](#-características) • [Instalación](#-instalación) • [Controles](#-controles) • [Código Secreto](#-código-secreto) • [Créditos](#-créditos)
+[🎮 Jugar Ahora](#-cómo-jugar) • [Características](#-características) • [Instalación](#-instalación) • [Controles](#-controles) • [Código Secreto](#-código-secreto)
 
 </div>
+
+---
+
+## 🚀 ¡JUEGA AHORA!
+
+**¿Quieres jugar inmediatamente?**
+
+👉 **Haz doble clic en `Bossfight_ElTroyano.exe`** 👈
+
+El ejecutable está en la **carpeta raíz** del proyecto. No necesitas instalar nada.
 
 ---
 
@@ -62,21 +72,50 @@ Eres un programador que descubre un virus maligno infiltrado en tu computadora. 
 
 ---
 
-## 🚀 Instalación
+## 🚀 Instalación y Ejecución
 
-### Requisitos Previos
+### 🎯 Opción 1: Ejecutable Standalone (Recomendado)
+
+**¡La forma más fácil de jugar!** Simplemente descarga y ejecuta.
+
+#### Descargar y Jugar
+
+**Método 1: Desde el repositorio**
+1. Descarga o clona el repositorio completo
+2. El ejecutable `Bossfight_ElTroyano.exe` está en la carpeta raíz
+3. Haz doble clic en `Bossfight_ElTroyano.exe`
+4. ¡A jugar! 🎮
+
+**Método 2: Desde Releases**
+1. Ve a [Releases](https://github.com/JeremiasFernandez/Pygame-SimpleGame-Proyect/releases)
+2. Descarga `Bossfight_ElTroyano.exe` (última versión)
+3. Haz doble clic en el archivo
+4. ¡A jugar! 🎮
+
+**Ventajas:**
+- ✅ No requiere Python instalado
+- ✅ Todas las bibliotecas incluidas
+- ✅ Assets integrados en el ejecutable
+- ✅ Listo para jugar instantáneamente
+- ✅ Un solo archivo, fácil de distribuir
+
+---
+
+### 💻 Opción 2: Ejecutar desde Código Fuente
+
+#### Requisitos Previos
 
 - Python 3.8 o superior
 - pip (gestor de paquetes de Python)
 
-### Paso 1: Clonar el Repositorio
+#### Paso 1: Clonar el Repositorio
 
 ```bash
 git clone https://github.com/JeremiasFernandez/Pygame-SimpleGame-Proyect.git
 cd Pygame-SimpleGame-Proyect
 ```
 
-### Paso 2: Instalar Dependencias
+#### Paso 2: Instalar Dependencias
 
 ```bash
 pip install pygame pillow
@@ -87,7 +126,7 @@ pip install pygame pillow
 pip install openai
 ```
 
-### Paso 3: Configurar API Key (Opcional)
+#### Paso 3: Configurar API Key (Opcional)
 
 Si deseas usar la integración con OpenAI para diálogos dinámicos:
 
@@ -108,12 +147,66 @@ export OPENAI_API_KEY="tu-api-key-aqui"
 
 > **Nota**: Si no configuras la API key, el juego usará diálogos predefinidos automáticamente.
 
-### Paso 4: Ejecutar el Juego
+#### Paso 4: Ejecutar el Juego
 
 ```bash
 cd Juego/Codigo
 python main.py
 ```
+
+---
+
+### 🔨 Opción 3: Compilar tu Propio Ejecutable
+
+¿Quieres crear tu propia versión del `.exe`?
+
+#### Requisitos Adicionales
+
+```bash
+pip install pyinstaller
+```
+
+#### Compilación Automática
+
+**Usando el script de PowerShell (Windows):**
+
+```powershell
+cd Juego/Codigo
+.\build_exe.ps1
+```
+
+El script automáticamente:
+1. ✅ Verifica e instala dependencias
+2. ✅ Genera el ícono del juego
+3. ✅ Compila el ejecutable con PyInstaller
+4. ✅ Empaqueta todos los assets
+
+**Compilación Manual:**
+
+```bash
+cd Juego/Codigo
+
+# Crear el ícono
+python create_icon.py
+
+# Compilar con PyInstaller (método simplificado)
+pyinstaller --clean --onefile --noconsole --icon=game_icon.ico --add-data "..\assets;assets" --name Bossfight_ElTroyano main.py
+
+# Mover el ejecutable a la carpeta raíz
+mover_exe.bat
+```
+
+El ejecutable se generará en: `Juego/Codigo/dist/Bossfight_ElTroyano.exe`
+
+Después de compilar, usa `mover_exe.bat` para mover el `.exe` a la carpeta raíz del proyecto, donde los usuarios puedan acceder fácilmente.
+
+**Configuración del Ícono:**
+
+El script `create_icon.py` intentará usar sprites del juego para crear el ícono. Si quieres usar tu propia imagen:
+
+1. Coloca tu imagen (PNG preferiblemente) en `Juego/assets/Sprites/`
+2. Modifica `create_icon.py` para apuntar a tu imagen
+3. Ejecuta el script de compilación
 
 ---
 
@@ -131,7 +224,6 @@ python main.py
 |-------|--------|
 | `↑` `↓` `←` `→` o `W` `A` `S` `D` | Moverse |
 | `X` o `Enter` | Interactuar con PC (iniciar batalla) |
-| `Z` o `Espacio` | Hablar con la abuela |
 
 ### Batalla
 | Tecla | Acción |
@@ -165,42 +257,6 @@ Esto habilitará:
 - ✅ Todas las estrellas obtenidas
 
 > **Easter Egg**: Este código es un homenaje a la **Universidad Tecnológica Nacional - Facultad Regional Avellaneda**, donde nació este proyecto.
-
----
-
-## 🎨 Estructura del Proyecto
-
-```
-Pygame-SimpleGame-Proyect/
-│
-├── Juego/
-│   ├── assets/
-│   │   ├── Sounds/          # Efectos de sonido
-│   │   ├── Soundtrack/      # Música del juego
-│   │   └── Sprites/         # Gráficos y animaciones
-│   │
-│   ├── Codigo/
-│   │   ├── main.py          # Punto de entrada principal
-│   │   ├── Const.py         # Constantes y configuración
-│   │   │
-│   │   ├── characters/      # Personajes del juego
-│   │   │   ├── player.py    # Lógica del jugador
-│   │   │   ├── boss.py      # Lógica del jefe final
-│   │   │   ├── bullet.py    # Sistema de proyectiles
-│   │   │   └── border.py    # Bordes peligrosos
-│   │   │
-│   │   └── screens/         # Pantallas del juego
-│   │       ├── menu.py      # Menú principal
-│   │       ├── intro.py     # Introducción top-down
-│   │       ├── combat.py    # Sistema de combate
-│   │       ├── practice.py  # Modo práctica
-│   │       ├── victory.py   # Pantalla de victoria
-│   │       └── gameover.py  # Pantalla de derrota
-│   │
-│   └── testing/             # Archivos de prueba
-│
-└── README.md
-```
 
 ---
 
