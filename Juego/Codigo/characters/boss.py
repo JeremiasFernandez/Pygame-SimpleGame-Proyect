@@ -63,10 +63,10 @@ class Boss(pygame.sprite.Sprite):
         # --- Posicionamiento manual por fase ---
         # Cambia estas posiciones a gusto. Anchor puede ser: "midbottom", "center" o "topleft".
         self.positioning = {
-            1: {"anchor": "midbottom", "pos": (c.ANCHO // 2, c.BOX_Y - 12)},
-            2: {"anchor": "midbottom", "pos": (c.ANCHO // 2, c.BOX_Y - 12)},
-            3: {"anchor": "midbottom", "pos": (c.ANCHO // 2, c.BOX_Y - 12)},
-            "defeated": {"anchor": "midbottom", "pos": (c.ANCHO // 2, c.BOX_Y - 12)},
+               1: (400, 140),        # Fase 1: centro en (x=400, y=140)  ← EDITÁ AQUÍ
+               2: (400, 140),        # Fase 2: centro                     ← EDITÁ AQUÍ
+               3: (400, 140),        # Fase 3: centro                     ← EDITÁ AQUÍ
+               "defeated": (400, 160) # Derrotado: centro                  ← EDITÁ AQUÍ
         }
 
         # Aplicar posición para fase 1 (anchor midbottom, siempre igual)
@@ -110,6 +110,12 @@ class Boss(pygame.sprite.Sprite):
         self.move_amplitude = 0  # Desactivar movimiento lateral por defecto
 
     def apply_position(self, key):
+        """Aplica la posición del jefe para la clave dada (1,2,3,"defeated").
+
+        Soporta dos formatos en self.positioning:
+        - Dict por fase: { 'anchor': 'midbottom'|'center'|'topleft', 'pos': (x,y) }
+        - Tupla (x, y) directa: se interpreta como centro (anchor='center')
+        """
         # Modo absoluto: usa coordenadas exactas (centro)
         if getattr(self, "pos_mode", "anchor") == "absolute":
             pos = self.pos_abs.get(key)
@@ -121,18 +127,31 @@ class Boss(pygame.sprite.Sprite):
             self.rect.center = (int(pos[0]), int(pos[1]))
             return
 
-        # Modo anchor (alternativa)
+        # Modo anchor (alternativa) con soporte de tuplas simples
         cfg = self.positioning.get(key)
-        if not cfg:
+        if cfg is None:
             return
-        anchor = cfg.get("anchor", "midbottom")
-        x, y = cfg.get("pos", (c.ANCHO // 2, c.BOX_Y - 12))
-        if anchor == "center":
+
+        # Si el usuario puso directamente una tupla/lista (x,y), interpretamos como center
+        if isinstance(cfg, (tuple, list)) and len(cfg) == 2:
+            x, y = int(cfg[0]), int(cfg[1])
             self.rect.center = (x, y)
-        elif anchor == "topleft":
-            self.rect.topleft = (x, y)
-        else:  # midbottom por defecto
-            self.rect.midbottom = (x, y)
+            return
+
+        # Si es dict, usar anchor + pos
+        if isinstance(cfg, dict):
+            anchor = cfg.get("anchor", "midbottom")
+            x, y = cfg.get("pos", (c.ANCHO // 2, c.BOX_Y - 12))
+            if anchor == "center":
+                self.rect.center = (x, y)
+            elif anchor == "topleft":
+                self.rect.topleft = (x, y)
+            else:  # midbottom por defecto
+                self.rect.midbottom = (x, y)
+            return
+
+        # Formato no reconocido: no mover
+        return
 
     def set_pos(self, phase_key, x, y):
         """Define posición absoluta (centro) para una fase y la aplica si corresponde."""

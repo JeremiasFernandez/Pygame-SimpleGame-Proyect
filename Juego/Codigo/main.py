@@ -357,6 +357,23 @@ while running:
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
+        
+        # Abrir chat en batalla al presionar C (manejo por evento para prioridad sobre ESC)
+        if (modo_juego == "batalla" and combate and not getattr(combate, 'chat_active', False)
+            and getattr(combate, 'state', None) == "menu"
+            and event.type == pygame.KEYDOWN and event.key == pygame.K_c):
+            try:
+                combate.start_chat()
+            except Exception as _e:
+                pass
+            # No procesar otros manejos para este evento
+            continue
+        
+        # Si estamos en batalla y el chat está activo, manejar eventos del chat
+        if modo_juego == "batalla" and combate and combate.chat_active:
+            combate.handle_chat_event(event)
+            continue  # No procesar otros eventos mientras el chat está activo
+        
         # ESC: vuelve al menú desde cualquier pantalla EXCEPTO cuando ya estás en el menú (ahí sale del juego)
         if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
             # Anti-repeat: si aún está en cooldown, ignorar
@@ -462,7 +479,7 @@ while running:
             playselect.handle_event(event)
             if playselect.selected_difficulty:
                 if playselect.selected_difficulty == "junior":
-                    difficulty_label = "Junior"; difficulty_factor = 0.75
+                    difficulty_label = "Junior"; difficulty_factor = 0.55
                     modo_juego = "intro"
                     is_practice_mode = False  # No es práctica
                 elif playselect.selected_difficulty == "senior":
@@ -564,7 +581,13 @@ while running:
     elif modo_juego == "batalla":
         keys = pygame.key.get_pressed()
         player.update(keys)
-        combate.update(player, enemy)
+        
+        # Si el chat está activo, manejar eventos de texto
+        if combate and combate.chat_active:
+            # No procesar eventos de batalla normales cuando el chat está activo
+            pass
+        else:
+            combate.update(player, enemy)
 
         # Si el jefe marcó victoria lista, pasar a pantalla de victoria
         if enemy and getattr(enemy, 'victory_ready', False):

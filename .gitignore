@@ -1,0 +1,28 @@
+# Python cache y archivos compilados
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Variables de entorno
+.env
+.env.local
+
+# VS Code
+.vscode/
+*.code-workspace
+
+# PyCharm
+.idea/
+
+# Archivos de sistema
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Distribuciones
+dist/
+build/
+*.egg-info/
