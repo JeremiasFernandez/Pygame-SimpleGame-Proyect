@@ -91,6 +91,30 @@ class IntroTopdown:
         self.jump_duration = 15  # frames
         self.jump_offset = 0  # vertical offset for jump
 
+        # Battle transition animation (Undertale-style screen flash)
+        self.battle_transition_active = False
+        self.battle_transition_timer = 0
+        self.battle_transition_duration = 60  # ~1 second at 60 FPS
+        self.flash_pattern = [  # Pattern of flashes (frames to show black screen)
+            (0, 8),    # Flash 1: frames 0-8
+            (12, 20),  # Flash 2: frames 12-20
+            (24, 32),  # Flash 3: frames 24-32
+            (40, 60),  # Final fade to black: frames 40-60
+        ]
+        
+        # Battle transition sound
+        try:
+            self.battle_transition_snd = pygame.mixer.Sound(os.path.join("Juego","assets","Sounds","battle.wav"))
+            self.battle_transition_snd.set_volume(0.5)
+        except Exception:
+            # Try alternative names
+            try:
+                self.battle_transition_snd = pygame.mixer.Sound(os.path.join("Juego","assets","Sounds","encounter.wav"))
+                self.battle_transition_snd.set_volume(0.5)
+            except Exception:
+                self.battle_transition_snd = self.select_snd  # Use menu select as fallback
+                print("⚠️ No se pudo cargar sonido de transición de batalla, usando fallback")
+
     def _load_or_fallback(self, path, size, color):
         try:
             img = pygame.image.load(path).convert_alpha()
@@ -163,9 +187,14 @@ class IntroTopdown:
                     # after intro dialog, allow movement/interaction
                 return None
             # Interactions when no dialog
-            # Near PC -> start battle
+            # Near PC -> start battle transition
             if self._near(self.player_rect, self.pc_rect, 28):
-                return 'start_battle'
+                if not self.battle_transition_active:
+                    self.battle_transition_active = True
+                    self.battle_transition_timer = 0
+                    if self.battle_transition_snd:
+                        self.battle_transition_snd.play()
+                return None  # Don't return 'start_battle' yet
             # Near Grandma -> start grandma dialog variations
             if self._near(self.player_rect, self.grandma_rect, 28):
                 self.dialog_active = True
@@ -183,6 +212,14 @@ class IntroTopdown:
         return (abs(ax-bx) <= dist) and (abs(ay-by) <= dist)
 
     def update(self):
+        # Battle transition has priority over everything
+        if self.battle_transition_active:
+            self.battle_transition_timer += 1
+            if self.battle_transition_timer >= self.battle_transition_duration:
+                # Transition complete, signal to start battle
+                return 'start_battle'
+            return None  # Continue showing transition
+        
         # Movement disabled when dialog active
         keys = pygame.key.get_pressed()
         if not self.dialog_active:
@@ -307,6 +344,30 @@ class IntroTopdown:
         # Dialog Box
         if self.dialog_active and self.current_dialog:
             self._draw_dialog_box(screen, self.current_dialog['text'], self.current_dialog.get('face'))
+        
+        if self.battle_transition_active:
+            self._draw_battle_transition(screen)
+
+    def _draw_battle_transition(self, screen):
+        t = self.battle_transition_timer
+        show_black = False
+        alpha = 255
+        
+        
+        for start, end in self.flash_pattern:
+            if start <= t < end:
+                show_black = True
+
+                if start == 40:  
+                    progress = (t - start) / (end - start)
+                    alpha = int(255 * progress)
+                break
+        
+        if show_black:
+            overlay = pygame.Surface((c.ANCHO, c.ALTO))
+            overlay.fill((0, 0, 0))
+            overlay.set_alpha(alpha)
+            screen.blit(overlay, (0, 0))
 
     def _draw_hint(self, screen, text, pos):
         surf = self.font.render(text, True, c.BLANCO)
@@ -322,7 +383,7 @@ class IntroTopdown:
         pygame.draw.rect(screen, (0,0,0,200), box)
         pygame.draw.rect(screen, (220,220,220), box, 2)
 
-        # Portrait on right
+
         if face_surface:
             face_rect = face_surface.get_rect()
             face_rect.midright = (box.right - 16, box.centery)
@@ -331,11 +392,11 @@ class IntroTopdown:
         else:
             text_area = pygame.Rect(box.left+16, box.top+12, box.width-32, box.height-24)
 
-        # Render wrapped text
+
         self._render_text(screen, text, text_area, self.font, c.BLANCO)
 
     def _render_text(self, screen, text, rect, font, color):
-        # simple word-wrap
+
         words = text.split(' ')
         line = ''
         y = rect.top
@@ -347,7 +408,6 @@ class IntroTopdown:
             if w <= rect.width:
                 line = test
             else:
-                # render current line
                 surf = font.render(line, True, color)
                 screen.blit(surf, (rect.left, y))
                 y += h + 6

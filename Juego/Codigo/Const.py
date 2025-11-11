@@ -58,22 +58,14 @@ VIDA_JUGADOR = 100
 # MECÁNICA DEL BORDE PELIGROSO
 # ============================================================================
 BORDE_DURACION = 60              # Duración en frames (~1 segundo)
-BORDE_INTERVALO_MIN = 180        # Intervalo mínimo entre apariciones (~3 segundos)
-BORDE_INTERVALO_MAX = 400        # Intervalo máximo entre apariciones (~7 segundos)
+BORDE_INTERVALO_MIN = 300        # Intervalo mínimo entre apariciones (~3 segundos)
+BORDE_INTERVALO_MAX = 500        # Intervalo máximo entre apariciones (~7 segundos)
 BORDE_DANO = 1                   # Daño por contacto con el borde
 
 
 # ============================================================================
 # CONFIGURACIÓN DE INTELIGENCIA ARTIFICIAL (CHAT)
 # ============================================================================
-# ⚠️ SEGURIDAD: Nunca subas tu API key al repositorio público
-# La clave se obtiene desde una variable de entorno del sistema
-#
-# Configuración:
-#   - Windows:    setx OPENAI_API_KEY "tu-clave-aqui"
-#   - Linux/Mac:  export OPENAI_API_KEY="tu-clave-aqui"
-#
-# Luego reinicia la terminal/IDE para que la variable tome efecto
 
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
 
@@ -83,7 +75,7 @@ AI_PROVIDER = "openai"
 # Si hay error o cuota excedida, usar respuestas simuladas offline
 AI_FALLBACK_ON_ERROR = True
 
-# Modelo más económico: gpt-3.5-turbo ($0.0015 por 1K tokens)
+# Modelo
 OPENAI_MODEL = "gpt-3.5-turbo"
 
 # Máximo de tokens por respuesta (respuestas más cortas = más barato)

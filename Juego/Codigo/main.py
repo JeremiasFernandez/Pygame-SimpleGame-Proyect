@@ -28,6 +28,7 @@ import screens.practice as practice_screen
 import screens.options as options_screen
 import screens.credits as credits_screen
 import screens.intro as intro_screen
+import screens.victory as victory_screen
 import screens.combat as combat
 
 
@@ -107,6 +108,7 @@ practicemenu = None
 optsmenu = None
 creditss = None
 introscreen = None
+victoryscreen = None
 
 
 # ============================================================================
@@ -674,8 +676,12 @@ while running:
 
     elif modo_juego == "intro":
         if introscreen:
-            introscreen.update()
+            result = introscreen.update()
             introscreen.draw(screen)
+            # Check if transition to battle is complete
+            if result == 'start_battle':
+                is_practice_mode = False
+                start_battle()
 
     # --- Batalla ---
     elif modo_juego == "batalla":
@@ -694,6 +700,12 @@ while running:
             pygame.mixer.music.stop()
             modo_juego = "victoria"
             bullets.empty()
+            # Crear pantalla de victoria con estadísticas
+            victoryscreen = victory_screen.VictoryScreen(
+                difficulty_label=difficulty_label,
+                intentos=intentos,
+                is_practice=is_practice_mode
+            )
 
         # Efecto de texto “TROYANO LEGENDARIO”
         if enemy and enemy.phase == 2:
@@ -803,11 +815,30 @@ while running:
                     reset_game()
 
     elif modo_juego == "victoria":
-        screen.fill((10, 10, 20))
-        titulo = pygame.font.Font(None, 80).render("¡VICTORIA!", True, (255, 230, 120))
-        subt  = pygame.font.Font(None, 36).render("(Pantalla final en construcción)", True, (220, 220, 220))
-        screen.blit(titulo, titulo.get_rect(center=(c.ANCHO//2, c.ALTO//2 - 20)))
-        screen.blit(subt,   subt.get_rect(center=(c.ANCHO//2, c.ALTO//2 + 30)))
+        # Manejar eventos de pantalla de victoria
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit()
+            
+            if victoryscreen:
+                action = victoryscreen.handle_event(event)
+                if action == "menu":
+                    # Volver al menú principal
+                    bullets.empty()
+                    all_sprites.empty()
+                    enemy = None
+                    combate = None
+                    victoryscreen = None
+                    modo_juego = "menu"
+                    try:
+                        current_music_tag = None
+                    except Exception:
+                        pass
+                    play_menu_music_if_needed()
+                elif action == "quit":
+                    pygame.quit()
+                    sys.exit()
         
         # Otorgar estrella si no es modo práctica
         if not is_practice_mode:
@@ -823,6 +854,11 @@ while running:
                     current_music_tag = None
                 except Exception:
                     pass
+        
+        # Actualizar y renderizar pantalla de victoria
+        if victoryscreen:
+            victoryscreen.update()
+            victoryscreen.draw(screen)
 
     # --- Contador de intentos (solo durante la batalla) ---
     if modo_juego == "batalla" and intentos > 0:
