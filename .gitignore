@@ -1,0 +1,79 @@
+################################################################################
+# .gitignore limpio y consolidado para Bossfight: El Troyano
+# Objetivo: evitar commitear artefactos de build, ejecutables y caches.
+################################################################################
+
+# Python bytecode / caches
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Compilación nativa
+*.so
+.Python
+
+# Herramientas de empaquetado / distribución
+build/
+dist/
+*.egg-info/
+*.egg
+wheels/
+sdist/
+downloads/
+eggs/
+develop-eggs/
+parts/
+var/
+lib/
+lib64/
+
+# Entornos virtuales
+.env
+.env.local
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# IDE / Editor
+.vscode/
+.idea/
+*.code-workspace
+*.swp
+*.swo
+*~
+
+# Sistema Operativo
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Logs
+*.log
+
+# Ejecutable generado
+Bossfight_ElTroyano.exe
+
+# PyInstaller artefactos específicos (carpeta compilador)
+Juego/compilador/dist/
+Juego/compilador/build/
+
+# Iconos (permitir el utilizado en el ejecutable)
+*.ico
+!Juego/compilador/game_icon.ico
+
+# Archivos temporales de debug
+debug_output.txt
+debug_log.txt
+
+# Excluir assets empaquetados dentro de dist para no versionarlos
+Juego/compilador/dist/**
+
+# NO ignorar archivos de configuración importante del empaquetado
+!Juego/compilador/bossfight.spec
+
+################################################################################
+# FIN
+################################################################################
