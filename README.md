@@ -358,12 +358,10 @@ Este proyecto está bajo la Licencia MIT - ver el archivo `LICENSE` para más de
 
 - [ ] Más fases del jefe
 - [ ] Sistema de logros
-- [ ] Tabla de puntuaciones
-- [ ] Modo multijugador cooperativo
-- [ ] Más personajes jugables
-- [ ] Editor de niveles
-- [ ] Soporte para controles (gamepad)
-
+- [ ] Cambiar skin del Mouse
+- [ ] Un segundo jefe
+- [ ] Mapa interactivo con parte de historia
+- [ ] Distintos Finales
 ---
 
 ## 📞 Contacto
@@ -372,6 +370,7 @@ Este proyecto está bajo la Licencia MIT - ver el archivo `LICENSE` para más de
 
 - **GitHub Issues**: [Reportar problema](https://github.com/JeremiasFernandez/Pygame-SimpleGame-Proyect/issues)
 - **GitHub Profile**: [@JeremiasFernandez](https://github.com/JeremiasFernandez)
+- **Email**: jereferdz@gmail.com
 
 ---
 
