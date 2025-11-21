@@ -44,6 +44,8 @@ class AttackManager:
         self.boss = boss
         self.bullets_group = bullets_group
         self.all_sprites = all_sprites
+        # Límite suave para no saturar la pantalla
+        self.max_bullets = 120
 
         # --- Simple Bullet sprite (for normal bullets) --- speed
 
@@ -142,6 +144,9 @@ class AttackManager:
     def spawn(self, bullet):
         """Safely add bullet to relevant sprite groups."""
         try:
+            # No spawnear si ya hay demasiadas balas en pantalla
+            if len(self.bullets_group) >= self.max_bullets:
+                return
             self.bullets_group.add(bullet)
             if self.all_sprites:
                 self.all_sprites.add(bullet)
@@ -852,7 +857,162 @@ class AttackManager:
                 b.update = update_ball
                 b.damage = 4
                 self.spawn(b)
-                
+
+    # ========================================================================
+    # ATAQUES EXCLUSIVOS PARA BOSS2 (JEFE SECRETO)
+    # ========================================================================
+
+    def attack_spiral_burst(self, timer=0, difficulty=1.0):
+        """Ataque único: Espiral de bursts que explotan en círculos"""
+        if timer % 45 != 0:
+            return
+        # Cada burst es una espiral (menos instancias)
+        angle_offset = (timer // 45) * 25
+        for i in range(3):
+            angle = math.radians(angle_offset + i * 60)
+            radius = 80 + (timer % 120)
+            bx = c.ANCHO // 2 + math.cos(angle) * radius
+            by = c.BOX_Y - 40 + math.sin(angle) * radius
+            
+            # Explosión circular de balas pequeñas
+            for j in range(6):
+                sub_angle = math.radians(j * (360/6))
+                speed = 1.8 * difficulty
+                b = Bullet(int(bx), int(by))
+                b.speed_x = math.cos(sub_angle) * speed
+                b.speed_y = math.sin(sub_angle) * speed
+                b.speed = 0
+                if self.simplebullet10:
+                    b.image = self.simplebullet10.copy()
+                b.damage = 3
+                self.spawn(b)
+
+    def attack_wave_pattern(self, timer=0, difficulty=1.0):
+        """Ondas sinusoidales de balas que se mueven de arriba hacia abajo"""
+        if timer % 18 != 0:
+            return
+        
+        wave_num = (timer // 18) % 5
+        y_start = c.BOX_Y - 150
+        
+        for i in range(8):
+            x = 50 + i * (c.ANCHO - 100) // 7
+            # Movimiento sinusoidal
+            phase = (timer / 30.0) + i * 0.5
+            offset_x = math.sin(phase) * 25
+            
+            b = Bullet(int(x + offset_x), y_start)
+            b.speed = 1.6 * difficulty
+            b.speed_x = math.cos(phase) * 1.0 * difficulty
+            b.speed_y = 0
+            if self.simplebullet10:
+                b.image = self.simplebullet10.copy()
+            b.damage = 3
+            self.spawn(b)
+
+    def attack_rotating_shield(self, timer=0, difficulty=1.0):
+        """Escudo rotatorio de balas que orbita al boss"""
+        if timer % 12 != 0:
+            return
+        
+        rotation_speed = (timer / 240.0) * math.pi * 2
+        radius = 100
+        
+        for i in range(8):
+            angle = rotation_speed + (i * math.pi * 2 / 12)
+            bx = c.ANCHO // 2 + math.cos(angle) * radius
+            by = c.BOX_Y - 40 + math.sin(angle) * radius
+            
+            # Balas que se mueven hacia afuera lentamente
+            speed = 0.8 * difficulty
+            b = Bullet(int(bx), int(by))
+            b.speed_x = math.cos(angle) * speed
+            b.speed_y = math.sin(angle) * speed
+            b.speed = 0
+            if self.simplebullet10:
+                b.image = self.simplebullet10.copy()
+            b.damage = 4
+            self.spawn(b)
+
+    def attack_zigzag_laser(self, timer=0, difficulty=1.0):
+        """Láser zigzag que barre la pantalla de lado a lado"""
+        if timer % 18 != 0:
+            return
+        
+        # Posición del láser se mueve de izquierda a derecha
+        progress = (timer % 240) / 240.0
+        x_pos = 50 + progress * (c.ANCHO - 100)
+        
+        # Patrón zigzag vertical
+        for i in range(10):
+            y_offset = i * 40
+            zigzag = math.sin(i * 0.8 + timer / 12.0) * 24
+            
+            b = Bullet(int(x_pos + zigzag), c.BOX_Y - 180 + y_offset)
+            b.speed = 2.0 * difficulty
+            b.speed_x = math.cos(timer / 24.0) * 0.5 * difficulty
+            b.speed_y = 0
+            if self.simplebullet10:
+                b.image = self.simplebullet10.copy()
+            b.damage = 3
+            self.spawn(b)
+
+    def attack_cross_explosion(self, timer=0, difficulty=1.0):
+        """Cruz explosiva que dispara en las 4 direcciones cardinales"""
+        if timer % 45 != 0:
+            return
+        
+        center_x = c.ANCHO // 2
+        center_y = c.BOX_Y - 40
+        
+        # 4 direcciones cardinales
+        directions = [(0, 1), (0, -1), (1, 0), (-1, 0)]
+        
+        for dx, dy in directions:
+            # Múltiples balas por dirección con spacing
+            for dist in range(3):
+                speed = (2.2 + dist * 0.4) * difficulty
+                b = Bullet(center_x, center_y)
+                b.speed_x = dx * speed
+                b.speed_y = dy * speed
+                b.speed = 0
+                if self.simplebullet10:
+                    b.image = self.simplebullet10.copy()
+                b.damage = 4
+                self.spawn(b)
+
+    def attack_spiral_spears(self, timer=0, difficulty=1.0):
+        """Lanzas en espiral que rotan mientras caen"""
+        if timer % 36 != 0:
+            return
+        
+        angle_base = (timer // 36) * 30
+        
+        for i in range(4):
+            angle = math.radians(angle_base + i * 60)
+            radius = 100
+            sx = c.ANCHO // 2 + math.cos(angle) * radius
+            sy = c.BOX_Y - 150
+            
+            # Crear lanza
+            b = Bullet(int(sx), int(sy))
+            b.speed = 1.5 * difficulty
+            b.speed_x = math.cos(angle) * 0.6 * difficulty
+            b.speed_y = 0
+            
+            # Usar sprite de lanza si está disponible
+            if self.spear_d80:
+                b.image = self.spear_d80.copy()
+            else:
+                # Fallback: rectángulo largo
+                b.image = pygame.Surface((12, 80), pygame.SRCALPHA)
+                b.image.fill((255, 100, 100, 255))
+            
+            b.rect = b.image.get_rect(center=(int(sx), int(sy)))
+            b.fx = float(b.rect.centerx)
+            b.fy = float(b.rect.centery)
+            b.damage = 5
+            self.spawn(b)
 
                 
 

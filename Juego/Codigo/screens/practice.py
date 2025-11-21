@@ -4,11 +4,15 @@ import Const as c
 
 
 class PracticeMenu:
-    def __init__(self, has_two_stars: bool = False):
+    def __init__(self, has_two_stars: bool = False, secret_unlocked: bool = False):
         self.has_two_stars = bool(has_two_stars)
-        
-        # Todas las fases disponibles siempre
-        self.options = ["Fase 1", "Fase 2", "Fase 3 (End)", "Volver"]
+        # secret_unlocked derivado de estrellas (true si ambas)
+        self.secret_unlocked = bool(secret_unlocked or has_two_stars)
+        # Añadir jefe secreto (bloqueado si no hay 2 estrellas)
+        if self.secret_unlocked:
+            self.options = ["Fase 1", "Fase 2", "Fase 3 (End)", "Jefe Secreto", "Volver"]
+        else:
+            self.options = ["Fase 1", "Fase 2", "Fase 3 (End)", "Jefe Secreto (Bloqueado)", "Volver"]
         
         self.index = 0
         self.selected_phase = None  # 1 | 2 | 3 | 'back'
@@ -53,19 +57,33 @@ class PracticeMenu:
                     return
                 
                 choice = self.options[self.index]
+                print(f"[DEBUG PRACTICE] Opción seleccionada: '{choice}' (index={self.index})")
                 if self.sfx_select: self.sfx_select.play()
                 
                 # Fase 1
                 if choice.startswith("Fase 1"):
                     self.selected_phase = 1
+                    print("[DEBUG PRACTICE] -> selected_phase = 1")
                 
                 # Fase 2
                 elif choice.startswith("Fase 2"):
                     self.selected_phase = 2
+                    print("[DEBUG PRACTICE] -> selected_phase = 2")
                 
                 # Fase 3 (siempre disponible)
                 elif choice.startswith("Fase 3"):
                     self.selected_phase = 3
+                    print("[DEBUG PRACTICE] -> selected_phase = 3")
+
+                # Jefe Secreto (requiere dos estrellas)
+                elif choice.startswith("Jefe Secreto"):
+                    print(f"[DEBUG PRACTICE] choice='{choice}', secret_unlocked={self.secret_unlocked}, has_two_stars={self.has_two_stars}")
+                    if self.secret_unlocked and not "Bloqueado" in choice:
+                        self.selected_phase = "secret_boss"
+                        print("[DEBUG PRACTICE] Estableciendo selected_phase='secret_boss'")
+                    else:
+                        self._show_message("Se requieren 2 estrellas", (255,60,60))
+                        print("[DEBUG PRACTICE] Mostrando mensaje de bloqueo")
                 
                 # Volver
                 elif choice == "Volver":
@@ -76,6 +94,14 @@ class PracticeMenu:
             self.message_timer -= 1
         if self.entry_cooldown > 0:
             self.entry_cooldown -= 1
+        # Actualizar opciones si se desbloqueó mientras está abierto
+        if self.secret_unlocked and any("Bloqueado" in o for o in self.options):
+            self.options = ["Fase 1", "Fase 2", "Fase 3 (End)", "Jefe Secreto", "Volver"]
+
+    def _show_message(self, text, color):
+        self.message_text = text
+        self.message_color = color
+        self.message_timer = 120  # ~2s
 
     def draw(self, screen):
         screen.fill((24, 24, 24))
@@ -87,6 +113,8 @@ class PracticeMenu:
         for i, txt in enumerate(self.options):
             selected = (i == self.index)
             color = (255, 255, 255) if selected else (200, 200, 200)
+            if "Bloqueado" in txt:
+                color = (150, 70, 70) if selected else (120, 50, 50)
             
             surf = self.opt_font.render(txt, True, color)
             rect = surf.get_rect(center=(c.ANCHO // 2, base_y + i * gap))
@@ -96,3 +124,16 @@ class PracticeMenu:
                 screen.blit(arrow, (rect.left - 40, rect.top))
             
             screen.blit(surf, rect)
+
+        # Mensaje temporal (errores / bloqueos)
+        if self.message_timer > 0 and self.message_text:
+            msg_font = pygame.font.Font(None, 36)
+            m_surf = msg_font.render(self.message_text, True, self.message_color)
+            m_rect = m_surf.get_rect(center=(c.ANCHO // 2, c.ALTO - 80))
+            # Fondo rojo translúcido si es error
+            if self.message_color[0] > 200 and self.message_color[1] < 100:
+                bg = pygame.Surface((m_rect.width + 40, m_rect.height + 20), pygame.SRCALPHA)
+                bg.fill((self.message_color[0], self.message_color[1], self.message_color[2], 90))
+                bg_rect = bg.get_rect(center=m_rect.center)
+                screen.blit(bg, bg_rect)
+            screen.blit(m_surf, m_rect)

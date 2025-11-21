@@ -87,6 +87,7 @@ class VictoryScreen:
             pygame.mixer.music.stop()
             # Intentar cargar música de victoria
             victory_music_paths = [
+                "Juego/assets/Soundtrack/VictoryTheme.mp3",  # preferido si existe
                 "Juego/assets/Soundtrack/victory.mp3",
                 "Juego/assets/Soundtrack/menu_theme_complete.mp3",
             ]

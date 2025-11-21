@@ -208,14 +208,11 @@ class CombatSystem:
             "Sabes mucho",
             "nicki nicole si o no",
             "¿Esto me convierte en un hacker?",
-            
-
-            # Los textos en ruso estan hechos a proposito y es parte de la historia del juego
-            "Война не закончится, пока мы этого не скажем.",
-            "Программисты не смогут предотвратить наше вторжение.",
-            "суперядро будет нашим",
-            "Мы уже все знаем о твоей бабушке, отпусти нас, и мы не причиним ей вреда.",
-            "Если вы нас устраните, вы будете следующим, кого мы будем искать."
+            "El virus se pregunta por qué existes",
+            "El virus cuestiona tu propósito en la vida",
+            "El virus reflexiona sobre la naturaleza de la realidad",
+            "El virus medita sobre la existencia humana",
+            "El virus contempla el significado del ser",
 
         ]
         self._menu_dialog_current = None

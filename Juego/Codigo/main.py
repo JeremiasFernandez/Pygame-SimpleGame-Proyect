@@ -540,6 +540,13 @@ while running:
                     enemy.hp -= 100
                 print(f"💥 Boss HP reducido a {getattr(enemy,'hp',None)}")
 
+        # CHEAT: Desbloquear todas las estrellas para testing (F2)
+        if event.type == pygame.KEYDOWN and event.key == pygame.K_F2:
+            stars_junior = True
+            stars_senior = True
+            print("⭐⭐ CHEAT: Estrellas desbloqueadas!")
+            play_menu_music_if_needed()
+
         # Forzar ataque de lluvia para pruebas rápidas
         if event.type == pygame.KEYDOWN and event.key == pygame.K_r:
             if enemy:
@@ -614,12 +621,44 @@ while running:
         elif modo_juego == "practice":
             practicemenu.handle_event(event)
             if practicemenu.selected_phase is not None:
+                print(f"[DEBUG] Selected phase: {practicemenu.selected_phase}")
                 if practicemenu.selected_phase in (1, 2, 3):
                     start_battle(practicemenu.selected_phase)
-                else:  # back
+                    practicemenu = None
+                elif practicemenu.selected_phase == "secret_boss":
+                    print("[DEBUG] Intentando iniciar Boss2...")
+                    try:
+                        # Detener musica del menu
+                        pygame.mixer.music.stop()
+                        current_music_tag = None
+                        
+                        # Limpiar sprites
+                        bullets.empty()
+                        all_sprites.empty()
+                        all_sprites.add(player)
+                        
+                        # Crear Boss2
+                        from characters.boss2 import Boss2
+                        enemy = Boss2(bullets, all_sprites, music_volume=music_volume)
+                        all_sprites.add(enemy)
+                        
+                        # Crear sistema de combate (igual que en start_battle)
+                        combate = combat.CombatSystem()
+                        
+                        # Cambiar a modo batalla y modo practica
+                        is_practice_mode = True
+                        modo_juego = "batalla"
+                        practicemenu = None
+                        print(f"[SECRET] Boss2 iniciado, modo_juego={modo_juego}")
+                        print(f"[SECRET] enemy type: {type(enemy).__name__}, HP: {enemy.hp}")
+                    except Exception as e:
+                        import traceback
+                        print(f"[WARNING] Error iniciando Boss2: {e}")
+                        traceback.print_exc()
+                        practicemenu.selected_phase = None
+                elif practicemenu.selected_phase == "back":
                     modo_juego = "menu"
-                practicemenu = None
-                if modo_juego == "menu":
+                    practicemenu = None
                     play_menu_music_if_needed()
 
         elif modo_juego == "options":
@@ -633,6 +672,27 @@ while running:
             if result == "back":
                 modo_juego = "menu"; creditss = None
                 play_menu_music_if_needed()
+
+        elif modo_juego == "victoria":
+            # Pasar eventos a la pantalla de victoria (no volver a leer eventos más tarde)
+            if victoryscreen:
+                action = victoryscreen.handle_event(event)
+                if action == "menu":
+                    # Volver al menú principal
+                    bullets.empty()
+                    all_sprites.empty()
+                    enemy = None
+                    combate = None
+                    victoryscreen = None
+                    modo_juego = "menu"
+                    try:
+                        current_music_tag = None
+                    except Exception:
+                        pass
+                    play_menu_music_if_needed()
+                elif action == "quit":
+                    pygame.quit()
+                    sys.exit()
 
         # Intro topdown: delegar eventos
         if modo_juego == "intro" and introscreen:
@@ -693,6 +753,11 @@ while running:
 
     # --- Batalla ---
     elif modo_juego == "batalla":
+        # DEBUG: Verificar tipo de enemy
+        if enemy and not hasattr(enemy, '_debug_printed'):
+            print(f"[BATALLA] Enemy type: {type(enemy).__name__}, HP: {enemy.hp}, Phase: {enemy.phase}")
+            enemy._debug_printed = True
+        
         keys = pygame.key.get_pressed()
         player.update(keys)
         
@@ -732,12 +797,14 @@ while running:
             if enemy:
                 screen.blit(enemy.image, enemy.rect)
                 enemy.draw_health_bar(screen)
-                enemy.draw_flash_effect(screen)  # Flash blanco para fase 3
-                # Asegurar que transiciones críticas (como fase 3) no se pierdan en 'menu'
-                try:
-                    enemy.check_phase3_transition()
-                except Exception:
-                    pass
+                # Flash y transiciones solo para el boss original
+                if hasattr(enemy, 'draw_flash_effect'):
+                    enemy.draw_flash_effect(screen)
+                if hasattr(enemy, 'check_phase3_transition'):
+                    try:
+                        enemy.check_phase3_transition()
+                    except Exception:
+                        pass
                 _draw_tutorial_hint(screen, enemy)
             combate.draw(screen, enemy)
 
@@ -746,12 +813,14 @@ while running:
             if enemy:
                 screen.blit(enemy.image, enemy.rect)
                 enemy.draw_health_bar(screen)
-                enemy.draw_flash_effect(screen)  # Flash blanco para fase 3
-                # También verificar transiciones durante 'ataque'
-                try:
-                    enemy.check_phase3_transition()
-                except Exception:
-                    pass
+                # Flash y transiciones solo para el boss original
+                if hasattr(enemy, 'draw_flash_effect'):
+                    enemy.draw_flash_effect(screen)
+                if hasattr(enemy, 'check_phase3_transition'):
+                    try:
+                        enemy.check_phase3_transition()
+                    except Exception:
+                        pass
                 _draw_tutorial_hint(screen, enemy)
             combate.draw(screen, enemy)
 
@@ -761,7 +830,9 @@ while running:
                 # Guardar fase anterior para detectar cambio a fase 3
                 prev_phase = enemy.phase
                 enemy.update()
-                enemy.check_phase3_transition()
+                # Transición de fase 3 solo para boss original
+                if hasattr(enemy, 'check_phase3_transition'):
+                    enemy.check_phase3_transition()
                 # Si acabamos de entrar a fase 3, curar al jugador completamente
                 if prev_phase != 3 and enemy.phase == 3 and hasattr(enemy, '_fase3_activada'):
                     player.hp = 20  # Vida completa
@@ -793,7 +864,9 @@ while running:
             player.draw_health_bar(screen)
             if enemy:
                 enemy.draw_health_bar(screen)
-                enemy.draw_flash_effect(screen)  # Flash blanco para fase 3
+                # Flash solo para boss original
+                if hasattr(enemy, 'draw_flash_effect'):
+                    enemy.draw_flash_effect(screen)
                 _draw_tutorial_hint(screen, enemy)
 
             if player.hp <= 0:
@@ -823,31 +896,7 @@ while running:
                     reset_game()
 
     elif modo_juego == "victoria":
-        # Manejar eventos de pantalla de victoria
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                pygame.quit()
-                sys.exit()
-            
-            if victoryscreen:
-                action = victoryscreen.handle_event(event)
-                if action == "menu":
-                    # Volver al menú principal
-                    bullets.empty()
-                    all_sprites.empty()
-                    enemy = None
-                    combate = None
-                    victoryscreen = None
-                    modo_juego = "menu"
-                    try:
-                        current_music_tag = None
-                    except Exception:
-                        pass
-                    play_menu_music_if_needed()
-                elif action == "quit":
-                    pygame.quit()
-                    sys.exit()
-        
+        # Eventos ya manejados en el bucle principal; aquí solo lógicas y render
         # Otorgar estrella si no es modo práctica
         if not is_practice_mode:
             if difficulty_label == "Junior" and not stars_junior:

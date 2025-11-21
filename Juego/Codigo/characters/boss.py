@@ -1,7 +1,7 @@
 import os, sys
 import pygame, random, math
 
-# Allow running this file directly by fixing sys.path so 'Const' resolves
+# Permitir ejecutar este archivo directamente arreglando sys.path para que 'Const' se resuelva
 _this_file = os.path.abspath(__file__)
 _codigo_dir = os.path.dirname(os.path.dirname(_this_file))  # .../Codigo
 if _codigo_dir not in sys.path:
@@ -10,11 +10,11 @@ if _codigo_dir not in sys.path:
 import Const as c
 from characters.bullet import Bullet, AttackManager
 
-# If this file is executed directly, inform how to run the game properly
+# Si este archivo se ejecuta directamente, informar cómo ejecutar el juego correctamente
 if __name__ == "__main__":
     print("Este archivo define la clase Boss. Para jugar, ejecuta Juego/Codigo/main.py")
     print("Ejemplo (PowerShell): cd Juego/Codigo; python .\\main.py")
-    # Initialize pygame just to show version msg (already prints in some envs)
+    # Inicializar pygame solo para mostrar mensaje de versión (ya imprime en algunos entornos)
     try:
         import pygame
         pygame.init()
@@ -31,11 +31,11 @@ class Boss(pygame.sprite.Sprite):
 
         self.timer = 0
         self.attack_timer = 0
-        self.attack_duration = 420
+        self.attack_duration = 420 # 18 segundos
         self.hp = 200
         self.phase = 1
         self.difficulty = 1.0
-        self.music_volume = music_volume  # Store music volume for phase transitions
+        self.music_volume = music_volume  # Guardar volumen de música para transiciones de fase
         self.current_attack = None
         self._first_attack_forced = False
         self.music_playing = False
@@ -81,13 +81,13 @@ class Boss(pygame.sprite.Sprite):
         self.dialogo = None
         self.dialogo_timer = 0
         self.silencio_activo = False  # ✅ ESTA LÍNEA AGREGA EL CONTROL DE SILENCIO
-        self._fase3_silence_duration = 4500  # milliseconds: ~4.5s silence before phase 3 activation
+        self._fase3_silence_duration = 4500  # milisegundos: ~4.5s de silencio antes de la activación de fase 3
         self.puede_ser_atacado = True
         self.font = pygame.font.Font(None, 28)
 
         # Ataques por fase
         self.phase1_attacks = ["attack_tutorial", "attack_rain", "attack_diagonal", "attack_lateral1", "attack_lateral2", "attack_burst1", "attack_burst3"]
-        self.phase2_attacks = ["attack_spears", "attack_spearstorm"]  # Phase 2 only uses spear attacks
+        self.phase2_attacks = ["attack_spears", "attack_spearstorm"]  # Fase 2 solo usa ataques de lanzas
         # Ataques más intensos (fase 3)
         self.phase3_attacks = [
             "attack_spears",

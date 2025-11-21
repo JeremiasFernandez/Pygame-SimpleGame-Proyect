@@ -123,6 +123,11 @@ class Player(pygame.sprite.Sprite):
         self._handle_movement(keys)
         self._handle_invincibility()
         self._handle_x_sprite(keys)
+
+
+    # ============================================================================
+    # MOVIMIENTO DEL PERSONAJE
+    # ============================================================================
     
     def _handle_movement(self, keys):
         """Maneja el movimiento del jugador con límites del área de combate."""
