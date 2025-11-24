@@ -19,9 +19,34 @@
 
 **¿Quieres jugar inmediatamente?**
 
+### 🎯 Opción 1: Ejecutable (Recomendado - Windows)
+
 👉 **Haz doble clic en `Bossfight_ElTroyano.exe`** 👈
 
 El ejecutable está en la **carpeta raíz** del proyecto. No necesitas instalar nada.
+
+### 🎮 Opción 2: Launcher Universal (Cualquier sistema)
+
+**Windows:**
+```bash
+# Haz doble clic en:
+JUGAR.bat
+```
+
+**Linux/Mac:**
+```bash
+# Dale permisos de ejecución (solo la primera vez):
+chmod +x JUGAR.sh
+
+# Luego ejecuta:
+./JUGAR.sh
+```
+
+✅ **Ventajas del launcher:**
+- Funciona desde **cualquier ubicación** (no importa dónde clones el proyecto)
+- Instala dependencias automáticamente si faltan
+- Detecta y soluciona problemas de configuración
+- Compatible con cualquier nombre de usuario o carpeta
 
 ---
 
@@ -178,10 +203,25 @@ export OPENAI_API_KEY="tu-api-key-aqui"
 
 #### Paso 4: Ejecutar el Juego
 
+**Método Recomendado (desde cualquier ubicación):**
+
+```bash
+# Windows: Haz doble clic en JUGAR.bat
+# O desde terminal:
+JUGAR.bat
+
+# Linux/Mac:
+./JUGAR.sh
+```
+
+**Método Manual (debes estar en la carpeta correcta):**
+
 ```bash
 cd Juego/Codigo
 python main.py
 ```
+
+⚠️ **IMPORTANTE**: Si ejecutas manualmente con `python main.py`, **DEBES** estar dentro de la carpeta `Juego/Codigo/`. Si ejecutas desde la raíz u otra ubicación, tendrás errores de rutas.
 
 ---
 
@@ -367,16 +407,30 @@ pip install pygame pillow
 
 ### ❌ "FileNotFoundError" o problemas con directorios de assets
 
-**Solución:**
-```bash
-# IMPORTANTE: Ejecutar desde la carpeta correcta
-cd Juego/Codigo
-python main.py
+**Problema:** El juego no encuentra las carpetas de assets, música o sprites.
 
-# NO ejecutes desde la raíz del proyecto, debe ser desde Juego/Codigo
+**Solución Rápida:**
+```bash
+# Usa el launcher universal que maneja las rutas automáticamente:
+JUGAR.bat        (Windows)
+./JUGAR.sh       (Linux/Mac)
 ```
 
-El juego busca los assets en rutas relativas. Si ejecutas desde otra carpeta, no encontrará los archivos.
+**Solución Manual:**
+```bash
+# IMPORTANTE: Ejecutar desde la carpeta correcta
+cd Juego\Codigo
+python main.py
+
+# NO ejecutes desde la raíz del proyecto, debe ser desde Juego\Codigo
+```
+
+**¿Por qué pasa esto?**
+- El juego usa rutas relativas que dependen de dónde lo ejecutes
+- El launcher `JUGAR.bat` / `JUGAR.sh` maneja esto automáticamente
+- Si ejecutas manualmente, debes estar en `Juego/Codigo/`
+
+**Nota:** El ejecutable `.exe` NO tiene este problema porque tiene los assets integrados.
 
 ### ❌ "No se cargan los GIFs animados"
 

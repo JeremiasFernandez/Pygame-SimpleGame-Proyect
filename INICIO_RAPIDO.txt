@@ -6,13 +6,31 @@
 █ OPCION 1: JUGAR INMEDIATAMENTE (RECOMENDADO)                          █
 █████████████████████████████████████████████████████████████████████████
 
-  👉 Haz doble clic en: Bossfight_ElTroyano.exe
+  👉 Haz doble clic en: Bossfight_ElTroyano.exe   (Windows)
 
   ¡Ya está! No necesitas instalar nada. El juego arranca directamente.
 
 
 █████████████████████████████████████████████████████████████████████████
-█ OPCION 2: EJECUTAR DESDE CODIGO FUENTE                                █
+█ OPCION 2: USAR EL LAUNCHER UNIVERSAL (Funciona en cualquier sistema)  █
+█████████████████████████████████████████████████████████████████████████
+
+  ✅ VENTAJA: Funciona sin importar dónde tengas el proyecto
+             (No importa si está en C:\Users\User o en otro disco)
+
+  WINDOWS:
+    → Haz doble clic en: JUGAR.bat
+    → ¡Listo! El launcher instala dependencias y arranca el juego
+
+  LINUX/MAC:
+    → Abre terminal en la carpeta del proyecto
+    → Ejecuta: chmod +x JUGAR.sh    (solo la primera vez)
+    → Ejecuta: ./JUGAR.sh
+    → ¡Listo!
+
+
+█████████████████████████████████████████████████████████████████████████
+█ OPCION 3: INSTALACION MANUAL (Solo si eres desarrollador)             █
 █████████████████████████████████████████████████████████████████████████
 
   PASO 1: Instalar dependencias
@@ -31,13 +49,16 @@
   PASO 2: Ejecutar el juego
   ────────────────────────────────────────────────────────────────────
 
-    IMPORTANTE: Debes ejecutar desde la carpeta correcta
+    ⚠️ IMPORTANTE: Debes ejecutar desde la carpeta correcta ⚠️
 
       cd Juego\Codigo
       python main.py
 
-    ⚠️ NO ejecutes "python main.py" desde la raíz del proyecto
-    ⚠️ DEBES estar dentro de Juego\Codigo para que funcione
+    ❌ NO ejecutes "python main.py" desde la raíz del proyecto
+    ❌ NO ejecutes desde cualquier otra carpeta
+    ✅ DEBES estar dentro de Juego\Codigo para que funcione
+
+    💡 ALTERNATIVA FACIL: Usa JUGAR.bat que maneja las rutas por ti
 
 
 █████████████████████████████████████████████████████████████████████████
@@ -48,7 +69,13 @@
      ✅ Solución: pip install pygame pillow
 
   ❌ Error: "FileNotFoundError" o no encuentra assets
-     ✅ Solución: Ejecuta desde Juego\Codigo, NO desde la raíz
+     ✅ Solución: 
+        - OPCIÓN A: Usa JUGAR.bat (maneja rutas automáticamente)
+        - OPCIÓN B: Ejecuta desde Juego\Codigo, NO desde la raíz
+        - El juego NECESITA ejecutarse desde Juego\Codigo para
+          encontrar las carpetas de música, sprites, etc.
+        - No importa donde ESTÉ el proyecto (C:\, D:\, Documents, etc.)
+          lo importante es ejecutarlo desde Juego\Codigo
 
   ❌ El juego se cierra inmediatamente
      ✅ Solución: Abre CMD, ve a Juego\Codigo y ejecuta "python main.py"
@@ -66,19 +93,28 @@
 █ ESTRUCTURA DEL PROYECTO                                               █
 █████████████████████████████████████████████████████████████████████████
 
-  Pygame-SimpleGame-Proyect/
-  ├── Bossfight_ElTroyano.exe      ← Ejecutable del juego
-  ├── instalar_dependencias.bat    ← Instalador automático (Windows)
-  ├── requirements.txt             ← Lista de dependencias
-  ├── README.md                    ← Documentación completa
+  Pygame-SimpleGame-Proyect/         ← Raíz (puede estar en CUALQUIER lugar)
+  ├── Bossfight_ElTroyano.exe        ← Ejecutable del juego (Windows)
+  ├── JUGAR.bat                      ← 🌟 Launcher universal (Windows)
+  ├── JUGAR.sh                       ← 🌟 Launcher universal (Linux/Mac)
+  ├── instalar_dependencias.bat      ← Instalador automático (Windows)
+  ├── requirements.txt               ← Lista de dependencias
+  ├── README.md                      ← Documentación completa
+  ├── INICIO_RAPIDO.txt              ← Esta guía
   └── Juego/
-      ├── assets/                  ← Gráficos y sonidos
+      ├── assets/                    ← Gráficos y sonidos
       ├── Codigo/
-      │   ├── main.py             ← ¡Ejecuta este archivo!
+      │   ├── main.py               ← Ejecuta desde AQUÍ si lo haces manual
       │   ├── Const.py
       │   ├── characters/
       │   └── screens/
-      └── compilador/              ← Scripts de compilación
+      └── compilador/                ← Scripts de compilación
+
+  ⚠️  NOTA IMPORTANTE SOBRE RUTAS:
+      - El proyecto puede estar en C:\, D:\, /home/, Documents, etc.
+      - NO necesitas tenerlo en una ruta específica
+      - USA el launcher (JUGAR.bat / JUGAR.sh) y olvidate de rutas
+      - Si ejecutas manualmente, hazlo desde Juego\Codigo
 
 
 █████████████████████████████████████████████████████████████████████████
