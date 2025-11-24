@@ -25,6 +25,26 @@ El ejecutable está en la **carpeta raíz** del proyecto. No necesitas instalar 
 
 ---
 
+## ⚡ Instalación Rápida de Dependencias
+
+**¿Quieres ejecutar el código fuente pero tienes problemas con las bibliotecas?**
+
+### Windows - Método Súper Fácil 🪟
+
+1. Haz doble clic en **`instalar_dependencias.bat`** (está en la carpeta raíz)
+2. ¡Espera a que termine!
+3. Listo, ya puedes jugar
+
+### Todas las Plataformas - Método Universal 🌍
+
+```bash
+pip install -r requirements.txt
+```
+
+Esto instalará automáticamente: `pygame`, `pillow`, y `openai`
+
+---
+
 ## 📖 Descripción
 
 **Bossfight: El Troyano** es un proyecto universitario desarrollado para la materia **Programación 1** de la **UTN FRA** (Universidad Tecnológica Nacional - Facultad Regional Avellaneda). El juego combina mecánicas de bullet-hell con una narrativa inspirada en Undertale, donde enfrentas a un virus informático ruso con inteligencia artificial.
@@ -117,14 +137,23 @@ cd Pygame-SimpleGame-Proyect
 
 #### Paso 2: Instalar Dependencias
 
+**Opción A: Instalación Automática (Recomendado)**
+
 ```bash
-pip install pygame pillow
+pip install -r requirements.txt
 ```
 
-*Opcional (para diálogos con IA):*
+**Opción B: Instalación Manual**
+
 ```bash
+# Dependencias básicas (obligatorias)
+pip install pygame pillow
+
+# Opcional: para diálogos con IA
 pip install openai
 ```
+
+> **💡 Tip**: Si tienes problemas con los directorios o imports, asegúrate de ejecutar el juego desde `Juego/Codigo/` con `python main.py`
 
 #### Paso 3: Configurar API Key (Opcional)
 
@@ -318,6 +347,78 @@ Este proyecto fue desarrollado como trabajo práctico integrador para demostrar:
 
 ---
 
+---
+
+## ❓ Solución de Problemas Comunes
+
+### ❌ "ModuleNotFoundError: No module named 'pygame'"
+
+**Solución:**
+```bash
+# Opción 1: Usar el instalador automático (Windows)
+# Haz doble clic en: instalar_dependencias.bat
+
+# Opción 2: Instalar manualmente
+pip install -r requirements.txt
+
+# Opción 3: Instalar solo lo básico
+pip install pygame pillow
+```
+
+### ❌ "FileNotFoundError" o problemas con directorios de assets
+
+**Solución:**
+```bash
+# IMPORTANTE: Ejecutar desde la carpeta correcta
+cd Juego/Codigo
+python main.py
+
+# NO ejecutes desde la raíz del proyecto, debe ser desde Juego/Codigo
+```
+
+El juego busca los assets en rutas relativas. Si ejecutas desde otra carpeta, no encontrará los archivos.
+
+### ❌ "No se cargan los GIFs animados"
+
+**Solución:**
+```bash
+pip install pillow
+```
+
+Pillow es necesario para procesar GIFs animados (estrellas, fondos).
+
+### ❌ "El juego no inicia o se cierra inmediatamente"
+
+**Verificaciones:**
+1. ¿Tienes Python 3.8 o superior? → `python --version`
+2. ¿Instalaste las dependencias? → `pip list | findstr pygame`
+3. ¿Estás en la carpeta correcta? → Debe ser `Juego/Codigo/`
+4. ¿Hay errores en la consola? → Ejecuta con `python main.py` (no doble clic)
+
+### ❌ "OpenAI API errors" o problemas con IA
+
+**Solución:**
+No te preocupes, el juego funciona perfectamente sin la API de OpenAI. Los diálogos usarán texto predefinido automáticamente. Si quieres usar la IA:
+
+```bash
+# Instalar biblioteca
+pip install openai
+
+# Configurar tu API key
+# Windows PowerShell:
+$env:OPENAI_API_KEY="tu-api-key-aqui"
+```
+
+### 💡 ¿Nada funciona? Usa el ejecutable
+
+Si tienes muchos problemas con Python y las bibliotecas, simplemente usa el ejecutable:
+
+👉 **Haz doble clic en `Bossfight_ElTroyano.exe`**
+
+No requiere instalación de nada. ¡Funciona de inmediato!
+
+---
+
 ## 🏆 Créditos
 
 ### Desarrollo
@@ -346,11 +447,16 @@ Este proyecto está bajo la Licencia MIT - ver el archivo `LICENSE` para más de
 
 ---
 
-## 🐛 Problemas Conocidos
+## 🐛 Problemas Conocidos y Soluciones
 
-- El juego requiere los archivos de assets para funcionar correctamente
-- La integración con OpenAI requiere conexión a internet y API key válida
-- Algunos sprites pueden no cargar si falta Pillow
+| Problema | Solución |
+|----------|----------|
+| El juego requiere los archivos de assets | ✅ Usar el `.exe` (assets incluidos) o ejecutar desde `Juego/Codigo/` |
+| Integración con OpenAI requiere internet | ✅ El juego tiene diálogos offline por defecto |
+| GIFs no se cargan | ✅ Instalar Pillow: `pip install pillow` |
+| Errores de imports | ✅ Usar `instalar_dependencias.bat` o `pip install -r requirements.txt` |
+
+**📖 Para más ayuda, consulta la [Sección de Solución de Problemas](#-solución-de-problemas-comunes)**
 
 ---
 
