@@ -30,7 +30,7 @@ echo [INFO] Actualizando pip...
 python -m pip install --upgrade pip >nul 2>&1
 
 echo [INFO] Instalando dependencias del juego...
-pip install -r requirements.txt
+pip install -r ..\requirements.txt
 if errorlevel 1 (
   echo [ERROR] Fallo instalando dependencias.
   pause
@@ -41,12 +41,14 @@ echo.
 echo =============================================================
 echo Entorno listo. Para ejecutar el juego:
 echo    call %VENV_DIR%\Scripts\activate.bat
+echo    cd ..
 echo    python Juego\Codigo\main.py
 echo =============================================================
 
 echo Ejecutar ahora? (S/N)
 set /p RUNNOW=
 if /I "%RUNNOW%"=="S" (
+  cd ..
   python Juego\Codigo\main.py
 )
 

@@ -19,17 +19,19 @@ echo "[INFO] Actualizando pip..."
 pip install --upgrade pip >/dev/null 2>&1
 
 echo "[INFO] Instalando dependencias del juego..."
-pip install -r requirements.txt || { echo "[ERROR] Fallo instalando dependencias"; exit 1; }
+pip install -r ../requirements.txt || { echo "[ERROR] Fallo instalando dependencias"; exit 1; }
 
 echo ""
 echo "============================================================="
 echo "Entorno listo. Para ejecutar el juego:" 
 echo "    source $VENV_DIR/bin/activate"
+echo "    cd .."
 echo "    python Juego/Codigo/main.py"
 echo "============================================================="
 
 echo -n "¿Ejecutar ahora? (S/N): "
 read RUNNOW
 if [ "$RUNNOW" = "S" ] || [ "$RUNNOW" = "s" ]; then
+  cd ..
   python Juego/Codigo/main.py
 fi
