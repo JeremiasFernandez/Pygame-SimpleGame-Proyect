@@ -1,79 +1,32 @@
-################################################################################
-# .gitignore limpio y consolidado para Bossfight: El Troyano
-# Objetivo: evitar commitear artefactos de build, ejecutables y caches.
-################################################################################
-
-# Python bytecode / caches
+# Ignorar bytecode y caches
 __pycache__/
 *.py[cod]
 *$py.class
 
-# Compilación nativa
-*.so
-.Python
-
-# Herramientas de empaquetado / distribución
-build/
-dist/
-*.egg-info/
-*.egg
-wheels/
-sdist/
-downloads/
-eggs/
-develop-eggs/
-parts/
-var/
-lib/
-lib64/
-
 # Entornos virtuales
-.env
-.env.local
-.venv
-env/
+.venv/
 venv/
 ENV/
-env.bak/
-venv.bak/
 
-# IDE / Editor
+# Herramientas de build locales (ya no se versionan ejecutables ni dist)
+build/
+dist/
+
+# Logs temporales
+*.log
+
+# IDE/editor
 .vscode/
 .idea/
 *.code-workspace
-*.swp
-*.swo
-*~
 
-# Sistema Operativo
+# OS
 .DS_Store
 Thumbs.db
-desktop.ini
 
-# Logs
-*.log
+# Archivos temporales
+*.tmp
 
-# Ejecutable generado
-Bossfight_ElTroyano.exe
+# No almacenar ejecutables grandes
+*.exe
 
-# PyInstaller artefactos específicos (carpeta compilador)
-Juego/compilador/dist/
-Juego/compilador/build/
-
-# Iconos (permitir el utilizado en el ejecutable)
-*.ico
-!Juego/compilador/game_icon.ico
-
-# Archivos temporales de debug
-debug_output.txt
-debug_log.txt
-
-# Excluir assets empaquetados dentro de dist para no versionarlos
-Juego/compilador/dist/**
-
-# NO ignorar archivos de configuración importante del empaquetado
-!Juego/compilador/bossfight.spec
-
-################################################################################
-# FIN
-################################################################################

@@ -1,147 +1,36 @@
-╔════════════════════════════════════════════════════════════════════════╗
-║                  BOSSFIGHT: EL TROYANO - INICIO RAPIDO                 ║
-╚════════════════════════════════════════════════════════════════════════╝
+INICIO RAPIDO - Bossfight: El Troyano (Modo Desarrollo)
+=======================================================
 
-█████████████████████████████████████████████████████████████████████████
-█ OPCION 1: JUGAR INMEDIATAMENTE (RECOMENDADO)                          █
-█████████████████████████████████████████████████████████████████████████
+1) Instalar Python 3.10+ si no lo tienes.
 
-  👉 Haz doble clic en: Bossfight_ElTroyano.exe   (Windows)
+2) Crear entorno virtual:
+   Windows:
+      python -m venv .venv
+      call .venv\Scripts\activate.bat
+   Linux/Mac:
+      python3 -m venv .venv
+      source .venv/bin/activate
 
-  ¡Ya está! No necesitas instalar nada. El juego arranca directamente.
+3) Instalar dependencias:
+      pip install -r requirements.txt
 
+4) Ejecutar el juego:
+      python Juego/Codigo/main.py
 
-█████████████████████████████████████████████████████████████████████████
-█ OPCION 2: USAR EL LAUNCHER UNIVERSAL (Funciona en cualquier sistema)  █
-█████████████████████████████████████████████████████████████████████████
+Scripts automáticos:
+   Windows:  setup_env.bat
+   Linux:    bash setup_env.sh
 
-  ✅ VENTAJA: Funciona sin importar dónde tengas el proyecto
-             (No importa si está en C:\Users\User o en otro disco)
+Estructura mínima:
+  Juego/assets   -> recursos
+  Juego/Codigo   -> código fuente (main.py)
 
-  WINDOWS:
-    → Haz doble clic en: JUGAR.bat
-    → ¡Listo! El launcher instala dependencias y arranca el juego
+Solución de problemas:
+- ModuleNotFoundError: revisa que activaste el entorno y corriste pip install.
+- FileNotFoundError assets: ejecuta siempre desde la raíz del repo (no dentro de Codigo).
+- Pygame mixer error: verifica que tu sistema tenga salida de audio.
 
-  LINUX/MAC:
-    → Abre terminal en la carpeta del proyecto
-    → Ejecuta: chmod +x JUGAR.sh    (solo la primera vez)
-    → Ejecuta: ./JUGAR.sh
-    → ¡Listo!
+Opcional IA:
+  PowerShell: $env:OPENAI_API_KEY="tu_api_key"
 
-
-█████████████████████████████████████████████████████████████████████████
-█ OPCION 3: INSTALACION MANUAL (Solo si eres desarrollador)             █
-█████████████████████████████████████████████████████████████████████████
-
-  PASO 1: Instalar dependencias
-  ────────────────────────────────────────────────────────────────────
-
-    METODO FACIL (Windows):
-      → Haz doble clic en: instalar_dependencias.bat
-      → Espera a que termine
-      → ¡Listo!
-
-    METODO MANUAL (Todas las plataformas):
-      → Abre una terminal/cmd en la carpeta del proyecto
-      → Ejecuta: pip install -r requirements.txt
-
-
-  PASO 2: Ejecutar el juego
-  ────────────────────────────────────────────────────────────────────
-
-    ⚠️ IMPORTANTE: Debes ejecutar desde la carpeta correcta ⚠️
-
-      cd Juego\Codigo
-      python main.py
-
-    ❌ NO ejecutes "python main.py" desde la raíz del proyecto
-    ❌ NO ejecutes desde cualquier otra carpeta
-    ✅ DEBES estar dentro de Juego\Codigo para que funcione
-
-    💡 ALTERNATIVA FACIL: Usa JUGAR.bat que maneja las rutas por ti
-
-
-█████████████████████████████████████████████████████████████████████████
-█ PROBLEMAS COMUNES                                                     █
-█████████████████████████████████████████████████████████████████████████
-
-  ❌ Error: "No module named 'pygame'"
-     ✅ Solución: pip install pygame pillow
-
-  ❌ Error: "FileNotFoundError" o no encuentra assets
-     ✅ Solución: 
-        - OPCIÓN A: Usa JUGAR.bat (maneja rutas automáticamente)
-        - OPCIÓN B: Ejecuta desde Juego\Codigo, NO desde la raíz
-        - El juego NECESITA ejecutarse desde Juego\Codigo para
-          encontrar las carpetas de música, sprites, etc.
-        - No importa donde ESTÉ el proyecto (C:\, D:\, Documents, etc.)
-          lo importante es ejecutarlo desde Juego\Codigo
-
-  ❌ El juego se cierra inmediatamente
-     ✅ Solución: Abre CMD, ve a Juego\Codigo y ejecuta "python main.py"
-                  para ver los errores
-
-  ❌ Los GIFs no se ven
-     ✅ Solución: pip install pillow
-
-  ❌ Errores con OpenAI
-     ✅ Solución: No te preocupes, el juego funciona sin IA.
-                  Usa diálogos predefinidos automáticamente.
-
-
-█████████████████████████████████████████████████████████████████████████
-█ ESTRUCTURA DEL PROYECTO                                               █
-█████████████████████████████████████████████████████████████████████████
-
-  Pygame-SimpleGame-Proyect/         ← Raíz (puede estar en CUALQUIER lugar)
-  ├── Bossfight_ElTroyano.exe        ← Ejecutable del juego (Windows)
-  ├── JUGAR.bat                      ← 🌟 Launcher universal (Windows)
-  ├── JUGAR.sh                       ← 🌟 Launcher universal (Linux/Mac)
-  ├── instalar_dependencias.bat      ← Instalador automático (Windows)
-  ├── requirements.txt               ← Lista de dependencias
-  ├── README.md                      ← Documentación completa
-  ├── INICIO_RAPIDO.txt              ← Esta guía
-  └── Juego/
-      ├── assets/                    ← Gráficos y sonidos
-      ├── Codigo/
-      │   ├── main.py               ← Ejecuta desde AQUÍ si lo haces manual
-      │   ├── Const.py
-      │   ├── characters/
-      │   └── screens/
-      └── compilador/                ← Scripts de compilación
-
-  ⚠️  NOTA IMPORTANTE SOBRE RUTAS:
-      - El proyecto puede estar en C:\, D:\, /home/, Documents, etc.
-      - NO necesitas tenerlo en una ruta específica
-      - USA el launcher (JUGAR.bat / JUGAR.sh) y olvidate de rutas
-      - Si ejecutas manualmente, hazlo desde Juego\Codigo
-
-
-█████████████████████████████████████████████████████████████████████████
-█ CONTROLES DEL JUEGO                                                   █
-█████████████████████████████████████████████████████████████████████████
-
-  MENUS:
-    Flechas o W/S → Navegar
-    Enter/X       → Seleccionar
-    ESC           → Volver
-
-  BATALLA:
-    Flechas       → Mover
-    X             → Atacar
-    C             → Chat con el jefe (IA)
-    ESC           → Salir al menú
-
-
-█████████████████████████████████████████████████████████████████████████
-█ RECURSOS ADICIONALES                                                  █
-█████████████████████████████████████████████████████████████████████████
-
-  📖 README completo: README.md
-  🐛 Reportar bugs: https://github.com/JeremiasFernandez/Pygame-SimpleGame-Proyect/issues
-  💬 Contacto: jereferdz@gmail.com
-
-
-╔════════════════════════════════════════════════════════════════════════╗
-║                         ¡DISFRUTA EL JUEGO!                            ║
-╚════════════════════════════════════════════════════════════════════════╝
+Fin.
