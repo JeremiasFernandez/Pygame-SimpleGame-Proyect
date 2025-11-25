@@ -1,0 +1,12 @@
+# ============================================================================
+# Bossfight: El Troyano - Dependencias del Proyecto
+# ============================================================================
+
+# Biblioteca principal del juego
+pygame>=2.6.0
+
+# Procesamiento de imágenes (para GIFs animados)
+pillow>=10.0.0
+
+# API de OpenAI para diálogos dinámicos con IA (OPCIONAL)
+openai>=1.0.0

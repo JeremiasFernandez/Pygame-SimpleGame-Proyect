@@ -30,12 +30,12 @@ source .venv/bin/activate
 pip install -r requirements.txt
 python Juego/Codigo/main.py
 ```
-O usar los scripts automatizados:
+O usar los scripts automatizados en la carpeta `Ejecutables/`:
 ```bat
-setup_env.bat
+Ejecutables\setup_env.bat
 ```
 ```bash
-bash setup_env.sh
+bash Ejecutables/setup_env.sh
 ```
 
 ## 🚀 Ejecutar el juego
@@ -47,9 +47,12 @@ python Juego/Codigo/main.py
 ## 📁 Estructura
 ```
 Pygame-SimpleGame-Proyect/
-  ├── setup_env.bat
-  ├── setup_env.sh
-  ├── requirements.txt
+  ├── Ejecutables/       # Scripts de configuración y ejecución
+  │   ├── setup_env.bat  # Crear entorno virtual (Windows)
+  │   ├── setup_env.sh   # Crear entorno virtual (Linux/Mac)
+  │   ├── JUGAR.bat      # Launcher rápido (Windows)
+  │   └── INICIO_RAPIDO.txt  # Guía rápida
+  ├── requirements.txt   # Dependencias Python
   ├── README.md
   └── Juego/
       ├── assets/        # Sprites, sonidos, música
